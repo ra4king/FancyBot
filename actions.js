@@ -62,7 +62,7 @@ function check_notify(bot, nick, channel) {
 }
 
 function calc(bot, from, to, text, message) {
-	exec(bot, from, to, 'print(' + text + ')', message, true);
+	exec(bot, from, to, text, message, true);
 }
 
 function exec(bot, from, to, text, message, is_calc) {
@@ -73,8 +73,20 @@ function exec(bot, from, to, text, message, is_calc) {
 	check_notify(bot, from, to);
 
 	if(!text) {
-		sayDirect(bot, from, to, 'Usage: !exec 4 + 5');
+		if(is_calc) {
+			sayDirect(bot, from, to, 'Usage: !calc 4 + 5');
+		} else {
+			sayDirect(bot, from, to, 'Usage: !exec print("Hello, world!")');
+		}
 		return;
+	}
+
+	if(is_calc) {
+		if(text.indexOf(';') != -1) {
+			return;
+		}
+		
+		text = 'print(' + text + ')';
 	}
 
 	try {
@@ -84,7 +96,7 @@ function exec(bot, from, to, text, message, is_calc) {
 
 		var context = {
 			'print': function(text) {
-				output += text.replace('\n', ' ') + ' ';
+				output += text + ' ';
 			}
 		};
 
@@ -95,7 +107,7 @@ function exec(bot, from, to, text, message, is_calc) {
 		} else if(!output) {
 			sayDirect(bot, from, to, 'No output');
 		} else {
-			sayDirect(bot, from, to, output);
+			sayDirect(bot, from, to, output.replace('\n', ' '));
 		}
 	} catch(e) {
 		sayDirect(bot, from, to, 'Error: ' + e.message);
