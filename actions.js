@@ -62,10 +62,14 @@ function check_notify(bot, nick, channel) {
 }
 
 function calc(bot, from, to, text, message) {
-	exec(bot, from, to, 'print(' + text + ')', message);
+	exec(bot, from, to, 'print(' + text + ')', message, true);
 }
 
-function exec(bot, from, to, text, message) {
+function exec(bot, from, to, text, message, is_calc) {
+	if(!is_calc && to !== bot.nick && bot.chans[to].users[from] !== '@') {
+		return;
+	}
+
 	check_notify(bot, from, to);
 
 	if(!text) {
@@ -80,7 +84,7 @@ function exec(bot, from, to, text, message) {
 
 		var context = {
 			'print': function(text) {
-				output += text + ' ';
+				output += text.replace('\n', ' ') + ' ';
 			}
 		};
 
