@@ -117,11 +117,11 @@ function exec(bot, from, to, text, message, is_calc) {
 function no_command(bot, from, to, text, message) {
 	check_notify(bot, from, to);
 
-	var url_regex = /(http(s)?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?/g;
+	var url_regex = /(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?/g;
 
 	var result;
 	while((result = url_regex.exec(text)) != null) {
-		console.log("Detected URL: " + result[0]);
+		console.log('Detected URL: ' + result[0]);
 
 		var url_result = result[0];
 
@@ -129,12 +129,16 @@ function no_command(bot, from, to, text, message) {
 			url_result = 'http://' + url_result;
 		}
 
-		var protocol = result[2] === 's' ? require('https') : require('http');
+		function get_title(url) {
+			try {
+				console.log('Retrieving title for ' + url);
 
-		try {
-			(function(url) {
+				var parsed_url = require('url').parse(url);
+
+				var protocol = parsed_url.protocol === 'https:' ? require('https') : require('http');
+
 				var title_regex = /<\s*title[^>]*>(.+?)</gi;
-				protocol.get(require('url').parse(url), function(response) {
+				protocol.get(parsed_url, function(response) {
 					if(response.statusCode == 200) {
 						var data = '';
 						response.on('data', function(chunk) {
@@ -143,20 +147,27 @@ function no_command(bot, from, to, text, message) {
 						response.on('end', function() {
 							var title = title_regex.exec(data);
 							if(title && title[1]) {
-								console.log("URL Title: " + title[1]);
+								console.log('URL Title: ' + title[1]);
 								bot.say(to === bot.nick ? from : to, title[1] + ' - ' + url);
 							} else {
-								console.log("No title found.");
+								console.log('No title found.');
 							}
 						});
+					} else if(response.statusCode - 300 < 100) {
+						console.log('Got redirect for ' + url);
+						get_title(response.headers.location);
+					} else {
+						console.log('Got status ' + response.statusCode + ' for ' + url);
 					}
 				}).on('error', function(err) {
 					console.log('Could not reach ' + url + ': ' + err.message);
 				});
-			})(url_result);
-		} catch(e) {
-			console.log('Could not parse ' + url);
-		}
+			} catch(e) {
+				console.log('Could not parse ' + url);
+			}
+		};
+
+		get_title(url_result);
 	}
 }
 
