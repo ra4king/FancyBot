@@ -85,7 +85,7 @@ function exec(bot, from, to, text, message, is_calc) {
 		if(text.indexOf(';') != -1) {
 			return;
 		}
-		
+
 		text = 'print(' + text + ')';
 	}
 
@@ -123,33 +123,35 @@ function no_command(bot, from, to, text, message) {
 	while((result = url_regex.exec(text)) != null) {
 		console.log("Detected URL: " + result[0]);
 
-		var url = result[0];
+		var url_result = result[0];
 
 		if(result[1] === undefined) {
-			url = 'http://' + url;
+			url_result = 'http://' + url_result;
 		}
 
 		var protocol = result[2] === 's' ? require('https') : require('http');
 
 		try {
-			var title_regex = /<\s*title[^>]*>(.+?)</gi;
-			protocol.get(require('url').parse(url), function(response) {
-				var data = '';
-				response.on('data', function(chunk) {
-					data += chunk.toString();
+			(function(url) {
+				var title_regex = /<\s*title[^>]*>(.+?)</gi;
+				protocol.get(require('url').parse(url), function(response) {
+					var data = '';
+					response.on('data', function(chunk) {
+						data += chunk.toString();
+					});
+					response.on('end', function() {
+						var title = title_regex.exec(data);
+						if(title && title[1]) {
+							console.log("URL Title: " + title[1]);
+							bot.say(to === bot.nick ? from : to, title[1] + ' - ' + url);
+						} else {
+							console.log("No title found.");
+						}
+					});
+				}).on('error', function(err) {
+					console.log('Could not reach ' + url + ': ' + err.message);
 				});
-				response.on('end', function() {
-					var title = title_regex.exec(data);
-					if(title && title[1]) {
-						console.log("URL Title: " + title[1]);
-						bot.say(to === bot.nick ? from : to, title[1] + ' - ' + url);
-					} else {
-						console.log("No title found.");
-					}
-				});
-			}).on('error', function(err) {
-				console.log('Could not reach ' + url + ': ' + err.message);
-			});
+			})(url_result);
 		} catch(e) {
 			console.log('Could not parse ' + url);
 		}
@@ -158,8 +160,6 @@ function no_command(bot, from, to, text, message) {
 
 function _init(bot, channel, message) {
 	console.log('Joined ' + channel);
-
-	slapRandomly(bot, channel);
 }
 
 function _join(bot, channel, nick, message) {
@@ -170,15 +170,15 @@ function _part(bot, channel, nick, message) {
 	// nothing to do...
 }
 
-function slapRandomly(bot, channel) {
-	setTimeout(function() {
-		try {
-			var nicks = Object.keys(bot.chans[channel].users);
-			var nick = nicks[Math.floor(Math.random() * nicks.length)];
-			bot.action(channel, 'slaps ' + nick);
-			slapRandomly(bot, channel);
-		} catch(e) {
-			console.error('Something went very wrong with slap! ' + e.message);
-		}
-	}, Math.round(60000 * (Math.random() * 15 + 200)));
-}
+// function slapRandomly(bot, channel) {
+// 	setTimeout(function() {
+// 		try {
+// 			var nicks = Object.keys(bot.chans[channel].users);
+// 			var nick = nicks[Math.floor(Math.random() * nicks.length)];
+// 			bot.action(channel, 'slaps ' + nick);
+// 			slapRandomly(bot, channel);
+// 		} catch(e) {
+// 			console.error('Something went very wrong with slap! ' + e.message);
+// 		}
+// 	}, Math.round(60000 * (Math.random() * 200 + 15)));
+// }
