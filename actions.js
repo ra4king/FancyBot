@@ -153,7 +153,7 @@ function no_command(bot, from, to, text, message) {
 								console.log('No title found.');
 							}
 						});
-					} else if(response.statusCode - 300 < 100) {
+					} else if(Math.floor(response.statusCode / 100) == 3) {
 						console.log('Got redirect for ' + url);
 						get_title(response.headers.location);
 					} else {
