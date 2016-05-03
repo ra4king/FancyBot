@@ -1,4 +1,5 @@
 module.exports = {
+	'help': help,
 	'ping': ping,
 	'notify': notify,
 	'calc': calc,
@@ -9,12 +10,14 @@ module.exports = {
 	'_part': _part
 };
 
-function sayDirect(bot, from, to, message) {
-	if(to === bot.nick) {
-		bot.say(from, message);
-	} else {
-		bot.say(to, from + ': ' + message);
+function help(bot, from, to, text, message) {
+	var commands = '';
+	for(c in module.exports) {
+		if(c[0] !== '_') {
+			commands += ' ' + c;
+		}
 	}
+	sayDirect(bot, from, to, 'Available commands:' + commands);
 }
 
 function ping(bot, from, to, text, message) {
@@ -181,6 +184,14 @@ function _join(bot, channel, nick, message) {
 
 function _part(bot, channel, nick, message) {
 	// nothing to do...
+}
+
+function sayDirect(bot, from, to, message) {
+	if(to === bot.nick) {
+		bot.say(from, message);
+	} else {
+		bot.say(to, from + ': ' + message);
+	}
 }
 
 // function slapRandomly(bot, channel) {

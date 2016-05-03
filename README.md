@@ -4,6 +4,8 @@ FancyBot
 My fancy IRC bot written in Javascript for NodeJS.
 
 Features so far:
+- !help
+  - prints this list of commands
 - !ping
   - responds with pong
 - !notify nick message
