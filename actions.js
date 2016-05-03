@@ -93,7 +93,7 @@ function exec(bot, from, to, text, message, is_calc) {
 		var vm = require('vm');
 
 		var output = '';
-
+		
 		var context = {
 			'print': function(text) {
 				output += text + ' ';
@@ -135,19 +135,21 @@ function no_command(bot, from, to, text, message) {
 			(function(url) {
 				var title_regex = /<\s*title[^>]*>(.+?)</gi;
 				protocol.get(require('url').parse(url), function(response) {
-					var data = '';
-					response.on('data', function(chunk) {
-						data += chunk.toString();
-					});
-					response.on('end', function() {
-						var title = title_regex.exec(data);
-						if(title && title[1]) {
-							console.log("URL Title: " + title[1]);
-							bot.say(to === bot.nick ? from : to, title[1] + ' - ' + url);
-						} else {
-							console.log("No title found.");
-						}
-					});
+					if(response.statusCode == 200) {
+						var data = '';
+						response.on('data', function(chunk) {
+							data += chunk.toString();
+						});
+						response.on('end', function() {
+							var title = title_regex.exec(data);
+							if(title && title[1]) {
+								console.log("URL Title: " + title[1]);
+								bot.say(to === bot.nick ? from : to, title[1] + ' - ' + url);
+							} else {
+								console.log("No title found.");
+							}
+						});
+					}
 				}).on('error', function(err) {
 					console.log('Could not reach ' + url + ': ' + err.message);
 				});
