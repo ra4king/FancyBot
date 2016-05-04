@@ -4,11 +4,21 @@ module.exports = {
 	'notify': notify,
 	'calc': calc,
 	'exec': exec,
+	'notitle': no_title,
 	'_': no_command,
 	'_init': _init,
 	'_join': _join,
 	'_part': _part
 };
+
+var config;
+try {
+	config = JSON.parse(require('fs').readFileSync('config.json'));
+	console.log('Loaded config');
+} catch(e) {
+	console.error('ERROR: COULD NOT LOAD CONFIG');
+	config = {};
+}
 
 function help(bot, from, to, text, message) {
 	var commands = '';
@@ -69,11 +79,11 @@ function calc(bot, from, to, text, message) {
 }
 
 function exec(bot, from, to, text, message, is_calc) {
+	check_notify(bot, from, to);
+
 	if(!is_calc && to !== bot.nick && bot.chans[to].users[from] !== '@') {
 		return;
 	}
-
-	check_notify(bot, from, to);
 
 	if(!text) {
 		if(is_calc) {
@@ -117,10 +127,49 @@ function exec(bot, from, to, text, message, is_calc) {
 	}
 }
 
+function no_title(bot, from, to, text, message) {
+	check_notify(bot, from, to);
+
+	if(to === bot.nick || bot.chans[to].users[from] !== '@') {
+		return;
+	}
+
+	if(!text) {
+		sayDirect(bot, from, to, 'Usage: !notitle URL');
+		return;
+	}
+
+	var url_regex = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?\/?$/g;
+	var result = url_regex.exec(text);
+	if(!result) {
+		sayDirect(bot, from, to, 'Not a URL');
+		return;
+	}
+
+	var url_result = result[0];
+	if(result[1] === undefined) {
+		url_result = 'http://' + url_result;
+	}
+	url_result = url_result.toLowerCase();
+
+	if(config.url_blacklist) {
+		config.url_blacklist.push(url_result);
+	} else {
+		config.url_blacklist = [url_result];
+	}
+
+	require('fs').writeFile('config.json', JSON.stringify(config), function(err) {
+		if(err)
+			console.error('ERROR: COULD NOT WRITE CONFIG!');
+	});
+
+	sayDirect(bot, from, to, 'Ok');
+}
+
 function no_command(bot, from, to, text, message) {
 	check_notify(bot, from, to);
 
-	var url_regex = /(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?/g;
+	var url_regex = /(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?\/?/g;
 
 	var result;
 	while((result = url_regex.exec(text)) != null) {
@@ -133,9 +182,20 @@ function no_command(bot, from, to, text, message) {
 		}
 
 		function get_title(url) {
-			try {
-				console.log('Retrieving title for ' + url);
+			console.log('Retrieving title for ' + url);
 
+			if(config.url_blacklist) {
+				var lc_url = url.toLowerCase();
+
+				if(config.url_blacklist.findIndex(function(value) {
+					return value === lc_url;
+				}) != -1) {
+					console.log('Matched blacklist entry.');
+					return;
+				}
+			}
+
+			try {
 				var parsed_url = require('url').parse(url);
 
 				var protocol = parsed_url.protocol === 'https:' ? require('https') : require('http');
@@ -157,8 +217,13 @@ function no_command(bot, from, to, text, message) {
 							}
 						});
 					} else if(Math.floor(response.statusCode / 100) == 3) {
-						console.log('Got redirect for ' + url);
-						get_title(response.headers.location);
+						console.log('Got redirect (' + response.statusCode + ') for ' + url);
+						var r = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?\/?$/g;
+						if(response.headers.location && r.test(response.headers.location)) {
+							get_title(response.headers.location);
+						} else {
+							console.log('Did not receive valid redirect for ' + url + ': ' + response.headers.location);
+						}
 					} else {
 						console.log('Got status ' + response.statusCode + ' for ' + url);
 					}
