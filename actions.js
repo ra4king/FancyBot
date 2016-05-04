@@ -5,19 +5,100 @@ module.exports = {
 	'calc': calc,
 	'exec': exec,
 	'notitle': no_title,
+	'lastseen': last_seen,
 	'_': no_command,
+	'_msg': _msg,
 	'_init': _init,
 	'_join': _join,
 	'_part': _part
 };
 
 var config;
-try {
-	config = JSON.parse(require('fs').readFileSync('config.json'));
-	console.log('Loaded config');
-} catch(e) {
-	console.error('ERROR: COULD NOT LOAD CONFIG');
-	config = {};
+load_config();
+
+function load_config() {
+	try {
+		config = JSON.parse(require('fs').readFileSync('config.json'));
+		console.log('Loaded config');
+	} catch(e) {
+		console.error('ERROR: COULD NOT LOAD CONFIG');
+		config = {};
+	}
+}
+
+var save_count = 0;
+var last_timeout = null;
+function save_config() {
+	if(save_count < 10) {
+		if(last_timeout) {
+			clearTimeout(last_timeout);
+			save_count++;
+		}
+
+		last_timeout = setTimeout(function() {
+			save_count = 0;
+			last_timeout = null;
+			require('fs').writeFile('config.json', JSON.stringify(config, null, 4), function(err) {
+				if(err)
+					console.error('ERROR: COULD NOT WRITE CONFIG!');
+			});
+		}, 5000);
+	}
+}
+
+function _msg(bot, from, to, text, message) {
+	if(config.notify_messages && config.notify_messages[nick]) {
+		var from;
+		config.notify_messages[nick].forEach(function(val) {
+			if(!from) {
+				from = val;
+			} else {
+				sayDirect(bot, nick, channel, from + ' says: ' + val);
+			}
+		});
+
+		delete config.notify_messages[nick];
+	}
+
+	if(to !== bot.nick) {
+		if(!config.last_seen) {
+			config.last_seen = {};
+		}
+
+		config.last_seen[from] = [Date.now(), text];
+		save_config();
+	}
+}
+
+function last_seen(bot, from, to, text, message) {
+	if(!text) {
+		sayDirect(bot, from, to, 'Usage: !lastseen nick');
+		return;
+	}
+
+	if(config.last_seen && config.last_seen[text]) {
+		var last_time = config.last_seen[text][0];
+		var last_msg = config.last_seen[text][1];
+
+		var d = Date.now() - last_time;
+		var s = '';
+		[[1000,60,'second'], [60,60,'minute'], [60,24,'hour'], [24,365,'day'], [365,0,'year']].forEach(function(func, idx) {
+		 	d = Math.floor(d / func[0]);
+		 	var r = func[1] == 0 ? d : d % func[1];
+
+			if(r > 0) {
+				s = ' ' + r + ' ' + func[2] + (r > 1 ? 's' : '') + s;
+			}
+		});
+
+		if(s) {
+			sayDirect(bot, from, to, text + ' last seen' + s + ' ago: ' + last_msg);
+		} else {
+			sayDirect(bot, from, to, text + ' was just seen');
+		}
+	} else {
+		sayDirect(bot, from, to, 'I have not seen ' + text);
+	}
 }
 
 function help(bot, from, to, text, message) {
@@ -31,16 +112,10 @@ function help(bot, from, to, text, message) {
 }
 
 function ping(bot, from, to, text, message) {
-	check_notify(bot, from, to);
-
 	sayDirect(bot, from, to, 'pong');
 }
 
-var notify_messages = {};
-
 function notify(bot, from, to, text, message) {
-	check_notify(bot, from, to);
-
 	var idx = text.indexOf(' ');
 	if(!text || idx == -1) {
 		sayDirect(bot, from, to, 'Usage: !notify nick message');
@@ -50,28 +125,19 @@ function notify(bot, from, to, text, message) {
 	var nick = text.substring(0, idx).trim();
 	var msg = text.substring(idx + 1).trim();
 
-	if(notify_messages[nick]) {
-		notify_messages[nick].push(msg);
-	} else {
-		notify_messages[nick] = [from, msg];
+	if(!config.notify_messages) {
+		config.notify_messages = {};
 	}
+
+	if(config.notify_messages[nick]) {
+		config.notify_messages[nick].push(msg);
+	} else {
+		config.notify_messages[nick] = [from, msg];
+	}
+
+	save_config();
 
 	sayDirect(bot, from, to, 'Ok');
-}
-
-function check_notify(bot, nick, channel) {
-	if(notify_messages[nick]) {
-		var from;
-		notify_messages[nick].forEach(function(val) {
-			if(!from) {
-				from = val;
-			} else {
-				sayDirect(bot, nick, channel, from + ' says: ' + val);
-			}
-		});
-
-		delete notify_messages[nick];
-	}
 }
 
 function calc(bot, from, to, text, message) {
@@ -79,9 +145,8 @@ function calc(bot, from, to, text, message) {
 }
 
 function exec(bot, from, to, text, message, is_calc) {
-	check_notify(bot, from, to);
-
 	if(!is_calc && to !== bot.nick && bot.chans[to].users[from] !== '@') {
+		sayDirect(bot, from, to, 'Only ops may use this command.');
 		return;
 	}
 
@@ -128,9 +193,8 @@ function exec(bot, from, to, text, message, is_calc) {
 }
 
 function no_title(bot, from, to, text, message) {
-	check_notify(bot, from, to);
-
-	if(to === bot.nick || bot.chans[to].users[from] !== '@') {
+	if(to === bot.nick || !bot.chans[to] || bot.chans[to].users[from] !== '@') {
+		sayDirect(bot, from, to, 'Only ops may use this command.');
 		return;
 	}
 
@@ -139,37 +203,30 @@ function no_title(bot, from, to, text, message) {
 		return;
 	}
 
-	var url_regex = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?\/?$/g;
+	var url_regex = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?$/g;
 	var result = url_regex.exec(text);
 	if(!result) {
 		sayDirect(bot, from, to, 'Not a URL');
 		return;
 	}
 
-	var url_result = result[0];
+	var url = result[0];
 	if(result[1] === undefined) {
-		url_result = 'http://' + url_result;
+		url = 'http://' + url;
 	}
-	url_result = url_result.toLowerCase();
+	var parsed_url = require('url').parse(url);
 
 	if(config.url_blacklist) {
-		config.url_blacklist.push(url_result);
+		config.url_blacklist.push(parsed_url.hostname.toLowerCase());
 	} else {
-		config.url_blacklist = [url_result];
+		config.url_blacklist = [parsed_url.hostname.toLowerCase()];
 	}
-
-	require('fs').writeFile('config.json', JSON.stringify(config), function(err) {
-		if(err)
-			console.error('ERROR: COULD NOT WRITE CONFIG!');
-	});
 
 	sayDirect(bot, from, to, 'Ok');
 }
 
 function no_command(bot, from, to, text, message) {
-	check_notify(bot, from, to);
-
-	var url_regex = /(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?\/?/g;
+	var url_regex = /(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?/g;
 
 	var result;
 	while((result = url_regex.exec(text)) != null) {
@@ -184,19 +241,19 @@ function no_command(bot, from, to, text, message) {
 		function get_title(url) {
 			console.log('Retrieving title for ' + url);
 
-			if(config.url_blacklist) {
-				var lc_url = url.toLowerCase();
-
-				if(config.url_blacklist.findIndex(function(value) {
-					return value === lc_url;
-				}) != -1) {
-					console.log('Matched blacklist entry.');
-					return;
-				}
-			}
-
 			try {
 				var parsed_url = require('url').parse(url);
+
+				if(config.url_blacklist) {
+					var lc_url = parsed_url.hostname.toLowerCase();
+
+					if(config.url_blacklist.findIndex(function(value) {
+						return value === lc_url;
+					}) != -1) {
+						console.log('Matched blacklist entry.');
+						return;
+					}
+				}
 
 				var protocol = parsed_url.protocol === 'https:' ? require('https') : require('http');
 
@@ -218,7 +275,7 @@ function no_command(bot, from, to, text, message) {
 						});
 					} else if(Math.floor(response.statusCode / 100) == 3) {
 						console.log('Got redirect (' + response.statusCode + ') for ' + url);
-						var r = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]+)?\/?$/g;
+						var r = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?$/g;
 						if(response.headers.location && r.test(response.headers.location)) {
 							get_title(response.headers.location);
 						} else {
@@ -244,7 +301,7 @@ function _init(bot, channel, message) {
 }
 
 function _join(bot, channel, nick, message) {
-	check_notify(bot, nick, channel);
+	_msg(bot, nick, channel, '[joined ' + channel + ']', message);
 }
 
 function _part(bot, channel, nick, message) {
@@ -271,3 +328,4 @@ function sayDirect(bot, from, to, message) {
 // 		}
 // 	}, Math.round(60000 * (Math.random() * 200 + 15)));
 // }
+	

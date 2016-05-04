@@ -29,6 +29,8 @@ bot.on('part', function(channel, nick, reason, message) {
 });
 
 bot.on('message', function(nick, to, text, message) {
+	actions['_msg'](bot, nick, to, text, message);
+
 	if(text[0] === '!') {
 		var index = text.indexOf(' ');
 		var command = text.substring(1, index == -1 ? undefined : index).trim();
