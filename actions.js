@@ -268,7 +268,7 @@ function no_command(bot, from, to, text, message) {
 							var title = title_regex.exec(data);
 							if(title && title[1]) {
 								console.log('URL Title: ' + title[1]);
-								bot.say(to === bot.nick ? from : to, title[1] + ' - ' + url);
+								bot.say(to === bot.nick ? from : to, title[1] + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
 							} else {
 								console.log('No title found.');
 							}
