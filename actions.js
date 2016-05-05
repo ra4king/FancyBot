@@ -263,14 +263,15 @@ function init_units() {
 		units[meters][kilometers] = 0.001;
 	}
 
-	units[celsius] = {'noreverse': true};
+	units[celsius] = {};
 	{
-		units[celsius][fahrenheit] = function(val) { return val * 9.0 / 5.0 + 32; };
-	}
-
-	units[fahrenheit] = {'noreverse': true};
-	{
-		units[fahrenheit][celsius] = function(val) { return (val - 32.0) * 5.0 / 0.9; };
+		units[celsius][fahrenheit] = function(val, reverse) {
+			if(reverse) {
+				return (val - 32.0) * 5.0 / 9.0;
+			} else {
+				return (val * 9.0 / 5.0) + 32.0;
+			}
+		};
 	}
 
 	var regex = /(\d+(\.\d+)?) /;
@@ -319,8 +320,7 @@ function convert(bot, from, to, text, message, notify_fail) {
 		if(!foundFrom && r.test(convertFrom)) {
 			foundFrom = t;
 			if(foundTo) {
-				if(!units[t].noreverse)
-					reversed = true;
+				reversed = true;
 				break;
 			}
 		}
@@ -359,7 +359,7 @@ function convert(bot, from, to, text, message, notify_fail) {
 
 		
 		if(typeof factor == 'function') {
-			converted = factor(value);
+			converted = factor(value, reversed);
 		} else {
 			converted = value * factor;
 		}
