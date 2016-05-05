@@ -193,7 +193,10 @@ function exec(bot, from, to, text, message, is_calc) {
 	}
 }
 
-var units_regex = init_units();
+var units;
+var units_regex;
+init_units();
+
 function init_units() {
 	var inches = /inch(?:es)?/;
 	var feet = /f(?:ee|oo)t/;
@@ -206,7 +209,7 @@ function init_units() {
 	var celsius = /celsius|c/;
 	var fahrenheit = /fahrenheit|f/;
 
-	var units = {};
+	units = {};
 
 	units[inches] = {};
 	{
@@ -274,6 +277,8 @@ function init_units() {
 		};
 	}
 
+	units[fahrenheit] = {};
+
 	var regex = /(\d+(\.\d+)?) /;
 
 	function toString(rgx) {
@@ -289,7 +294,7 @@ function init_units() {
 	}
 	unitsRegex += ')';
 
-	return new RegExp(toString(regex) + unitsRegex + ' to ' + unitsRegex);
+	units_regex = new RegExp(toString(regex) + unitsRegex + ' to ' + unitsRegex);
 }
 
 function convert(bot, from, to, text, message, notify_fail) {
@@ -314,8 +319,13 @@ function convert(bot, from, to, text, message, notify_fail) {
 	var foundFrom = null;
 	var foundTo = null;
 
+	function toString(rgx) {
+		var s = rgx.toString();
+		return s.substring(1, s.length - 1);
+	}
+
 	for(var t in units) {
-		var r = new RegExp(toString(t));
+		var r = new RegExp(t);
 
 		if(!foundFrom && r.test(convertFrom)) {
 			foundFrom = t;
@@ -347,7 +357,7 @@ function convert(bot, from, to, text, message, notify_fail) {
 				return;
 			}
 
-			factor = 1.0 / units[foundTo][foundFrom];
+			factor = units[foundTo][foundFrom];
 		} else {
 			if(!units[foundFrom] || !units[foundFrom][foundTo]) {
 				unsupported();
@@ -360,6 +370,8 @@ function convert(bot, from, to, text, message, notify_fail) {
 		
 		if(typeof factor == 'function') {
 			converted = factor(value, reversed);
+		} else if(reversed) {
+			converted = value / factor;
 		} else {
 			converted = value * factor;
 		}
