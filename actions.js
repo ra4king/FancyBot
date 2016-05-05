@@ -221,7 +221,6 @@ function init_units() {
 
 	units[feet] = {};
 	{
-		units[feet][meters] = 0.3048;
 		units[feet][miles] = 1.0/5280.0;
 		units[feet][millimeters] = 304.8;
 		units[feet][centimeters] = 30.48;
@@ -268,7 +267,7 @@ function init_units() {
 	{
 		units[celsius][fahrenheit] = function(val) { return val * 9.0 / 5.0 + 32; };
 	}
-	
+
 	units[fahrenheit] = {'noreverse': true};
 	{
 		units[fahrenheit][celsius] = function(val) { return (val - 32.0) * 5.0 / 0.9; };
