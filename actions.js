@@ -207,15 +207,72 @@ function init_units() {
 	var fahrenheit = /fahrenheit|f/;
 
 	var units = {};
-	units[inches] = {}; units[inches][feet] = 1.0/12.0; units[inches][miles] = 1.0/(12.0 * 5280.0); units[inches][millimeters] = 25.4; units[inches][centimeters] = 2.54; units[inches][decimeters] = 0.254; units[inches][meters] = 0.0254; units[inches][kilometers] = 0.0000254;
-	units[feet] = {}; units[feet][meters] = 0.3048; units[feet][miles] = 1.0/5280.0; units[feet][millimeters] = 304.8; units[feet][centimeters] = 30.48; units[feet][decimeters] = 3.048; units[feet][meters] = 0.3048; units[feet][kilometers] = 0.0003048;
-	units[miles] = {}; units[miles][millimeters] = 1609344; units[miles][centimeters] = 160934.4; units[miles][decimeters] = 16093.44; units[miles][meters] = 1609.344; units[miles][kilometers] = 1.609344;
-	units[millimeters] = {}; units[millimeters][centimeters] = 0.1; units[millimeters][decimeters] = 0.01; units[millimeters][meters] = 0.001; units[millimeters][kilometers] = 0.000001;
-	units[centimeters] = {}; units[centimeters][decimeters] = 0.1; units[centimeters][meters] = 0.01; units[centimeters][kilometers] = 0.00001;
-	units[decimeters] = {}; units[decimeters][meters] = 0.1; units[decimeters][kilometers] = 0.0001;
-	units[meters] = {}; units[meters][kilometers] = 0.001;
-	units[celsius] = {'noreverse': true}; units[celsius][fahrenheit] = function(val) { return val * 9.0 / 5.0 + 32; };
-	units[fahrenheit] = {'noreverse': true}; units[fahrenheit][celsius] = function(val) { return (val - 32.0) * 5.0 / 0.9; };
+
+	units[inches] = {};
+	{
+		units[inches][feet] = 1.0/12.0;
+		units[inches][miles] = 1.0/(12.0 * 5280.0);
+		units[inches][millimeters] = 25.4;
+		units[inches][centimeters] = 2.54;
+		units[inches][decimeters] = 0.254;
+		units[inches][meters] = 0.0254;
+		units[inches][kilometers] = 0.0000254;
+	}
+
+	units[feet] = {};
+	{
+		units[feet][meters] = 0.3048;
+		units[feet][miles] = 1.0/5280.0;
+		units[feet][millimeters] = 304.8;
+		units[feet][centimeters] = 30.48;
+		units[feet][decimeters] = 3.048;
+		units[feet][meters] = 0.3048;
+		units[feet][kilometers] = 0.0003048;
+	}
+
+	units[miles] = {};
+	{
+		units[miles][millimeters] = 1609344;
+		units[miles][centimeters] = 160934.4;
+		units[miles][decimeters] = 16093.44;
+		units[miles][meters] = 1609.344;
+		units[miles][kilometers] = 1.609344;
+	}
+
+	units[millimeters] = {};
+	{
+		units[millimeters][centimeters] = 0.1;
+		units[millimeters][decimeters] = 0.01;
+		units[millimeters][meters] = 0.001;
+		units[millimeters][kilometers] = 0.000001;
+	}
+
+	units[centimeters] = {};{
+		units[centimeters][decimeters] = 0.1;
+		units[centimeters][meters] = 0.01;
+		units[centimeters][kilometers] = 0.00001;
+	}
+
+	units[decimeters] = {};
+	{
+		units[decimeters][meters] = 0.1;
+		units[decimeters][kilometers] = 0.0001;
+	}
+
+	units[meters] = {};
+	{
+		units[meters][kilometers] = 0.001;
+	}
+
+	units[celsius] = {'noreverse': true};
+	{
+		units[celsius][fahrenheit] = function(val) { return val * 9.0 / 5.0 + 32; };
+	}
+	
+	units[fahrenheit] = {'noreverse': true};
+	{
+		units[fahrenheit][celsius] = function(val) { return (val - 32.0) * 5.0 / 0.9; };
+	}
 
 	var regex = /(\d+(\.\d+)?) /;
 
