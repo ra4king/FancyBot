@@ -279,7 +279,7 @@ function init_units() {
 
 	units[fahrenheit] = {};
 
-	var regex = /(\d+(\.\d+)?) /;
+	var regex = /(-?\d+(\.\d+)?) /;
 
 	function toString(rgx) {
 		var s = rgx.toString();
