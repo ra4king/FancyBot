@@ -6,6 +6,7 @@ module.exports = {
 	'exec': exec,
 	'notitle': no_title,
 	'lastseen': last_seen,
+	'convert': convert,
 	'_': no_command,
 	'_msg': _msg,
 	'_init': _init,
@@ -192,6 +193,125 @@ function exec(bot, from, to, text, message, is_calc) {
 	}
 }
 
+var units_regex = init_units();
+function init_units() {
+	var inches = /inch(?:es)?/;
+	var feet = /f(?:ee|oo)t/;
+	var miles = /miles?/
+	var millimeters = /millimet(?:er|re)s?|mm/;
+	var centimeters = /centimet(?:er|re)s?|cm/;
+	var decimeters = /decimet(?:er|re)s?|dm/;
+	var meters = /met(?:er|re)s?|m/;
+	var kilometers = /kilomet(?:er|re)s?|km/;
+	var celsius = /celsius|c/;
+	var fahrenheit = /fahrenheit|f/;
+
+	var units = {};
+	units[inches] = {}; units[inches][feet] = 1.0/12.0; units[inches][miles] = 1.0/(12.0 * 5280.0); units[inches][millimeters] = 25.4; units[inches][centimeters] = 2.54; units[inches][decimeters] = 0.254; units[inches][meters] = 0.0254; units[inches][kilometers] = 0.0000254;
+	units[feet] = {}; units[feet][meters] = 0.3048; units[feet][miles] = 1.0/5280.0; units[feet][millimeters] = 304.8; units[feet][centimeters] = 30.48; units[feet][decimeters] = 3.048; units[feet][meters] = 0.3048; units[feet][kilometers] = 0.0003048;
+	units[miles] = {}; units[miles][millimeters] = 1609344; units[miles][centimeters] = 160934.4; units[miles][decimeters] = 16093.44; units[miles][meters] = 1609.344; units[miles][kilometers] = 1.609344;
+	units[millimeters] = {}; units[millimeters][centimeters] = 0.1; units[millimeters][decimeters] = 0.01; units[millimeters][meters] = 0.001; units[millimeters][kilometers] = 0.000001;
+	units[centimeters] = {}; units[centimeters][decimeters] = 0.1; units[centimeters][meters] = 0.01; units[centimeters][kilometers] = 0.00001;
+	units[decimeters] = {}; units[decimeters][meters] = 0.1; units[decimeters][kilometers] = 0.0001;
+	units[meters] = {}; units[meters][kilometers] = 0.001;
+	units[celsius] = {'noreverse': true}; units[celsius][fahrenheit] = function(val) { return val * 9.0 / 5.0 + 32; };
+	units[fahrenheit] = {'noreverse': true}; units[fahrenheit][celsius] = function(val) { return (val - 32.0) * 5.0 / 0.9; };
+
+	var regex = /(\d+(\.\d+)?) /;
+
+	function toString(rgx) {
+		var s = rgx.toString();
+		return s.substring(1, s.length - 1);
+	}
+
+	var unitsRegex = '(' + toString(inches);
+	for(var t in units) {
+		if(t != inches) {
+			unitsRegex += '|' + toString(t);
+		}
+	}
+	unitsRegex += ')';
+
+	return new RegExp(toString(regex) + unitsRegex + ' to ' + unitsRegex);
+}
+
+function convert(bot, from, to, text, message, notify_fail) {
+	if(!text) {
+		sayDirect(bot, from, to, 'Usage: !convert 45 feet to meters');
+		return;
+	}
+
+	var result = new RegExp(units_regex).exec(text);
+	if(!result) {
+		sayDirect(bot, from, to, 'Incorrect conversion request');
+		return;
+	}
+
+	var value = Number(result[1]);
+	var convertFrom = result[3];
+	var convertTo = result[4];
+
+	console.log(value + ' ' + convertFrom + ' to ' + convertTo);
+
+	var reversed = false;
+	var foundFrom = null;
+	var foundTo = null;
+
+	for(var t in units) {
+		var r = new RegExp(toString(t));
+
+		if(!foundFrom && r.test(convertFrom)) {
+			foundFrom = t;
+			if(foundTo) {
+				if(!units[t].noreverse)
+					reversed = true;
+				break;
+			}
+		}
+		if(!foundTo && r.test(convertTo)) {
+			foundTo = t;
+			if(foundFrom) {
+				break;
+			}
+		}
+	}
+
+	function unsupported() {
+		sayDirect(bot, from, to, 'Unsupported conversion');
+	}
+
+	var converted;
+	if(foundFrom == foundTo) {
+		converted = value;
+	} else {
+		var factor;
+		if(reversed) {
+			if(!units[foundTo] || !units[foundTo][foundFrom]) {
+				unsupported();
+				return;
+			}
+
+			factor = 1.0 / units[foundTo][foundFrom];
+		} else {
+			if(!units[foundFrom] || !units[foundFrom][foundTo]) {
+				unsupported();
+				return;
+			}
+
+			factor = units[foundFrom][foundTo];
+		}
+
+		
+		if(typeof factor == 'function') {
+			converted = factor(value);
+		} else {
+			converted = value * factor;
+		}
+	}
+
+	sayDirect(bot, from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
+}
+
 function no_title(bot, from, to, text, message) {
 	if(to === bot.nick || !bot.chans[to] || bot.chans[to].users[from] !== '@') {
 		sayDirect(bot, from, to, 'Only ops may use this command.');
@@ -199,7 +319,7 @@ function no_title(bot, from, to, text, message) {
 	}
 
 	if(!text) {
-		sayDirect(bot, from, to, 'Usage: !notitle URL');
+		sayDirect(bot, from, to, 'Usage: !notitle a.domain.com');
 		return;
 	}
 
@@ -257,7 +377,6 @@ function no_command(bot, from, to, text, message) {
 
 				var protocol = parsed_url.protocol === 'https:' ? require('https') : require('http');
 
-				var title_regex = /<\s*title[^>]*>(.+?)</gi;
 				protocol.get(parsed_url, function(response) {
 					if(response.statusCode == 200) {
 						var data = '';
@@ -265,8 +384,12 @@ function no_command(bot, from, to, text, message) {
 							data += chunk.toString();
 						});
 						response.on('end', function() {
+							var title_regex = /<\s*title.*?>([\s\S]+?)</mi;
 							var title = title_regex.exec(data);
+
 							if(title && title[1]) {
+								title[1] = title[1].replace(/\r|\n/g, ' ');
+
 								console.log('URL Title: ' + title[1]);
 								bot.say(to === bot.nick ? from : to, title[1] + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
 							} else {
@@ -275,7 +398,7 @@ function no_command(bot, from, to, text, message) {
 						});
 					} else if(Math.floor(response.statusCode / 100) == 3) {
 						console.log('Got redirect (' + response.statusCode + ') for ' + url);
-						var r = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?$/g;
+						var r = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?$/;
 						if(response.headers.location && r.test(response.headers.location)) {
 							get_title(response.headers.location);
 						} else {
@@ -328,4 +451,3 @@ function sayDirect(bot, from, to, message) {
 // 		}
 // 	}, Math.round(60000 * (Math.random() * 200 + 15)));
 // }
-	

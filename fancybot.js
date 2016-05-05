@@ -58,7 +58,7 @@ bot.on('message', function(nick, to, text, message) {
 });
 
 bot.on('action', function(nick, to, text, message) {
-	actions['_'](bot, nick, to, text, message);
+	actions['_msg'](bot, nick, to, text, message);
 })
 
 process.on('exit', function() {
