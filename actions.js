@@ -325,7 +325,7 @@ function convert(bot, from, to, text, message, notify_fail) {
 	}
 
 	for(var t in units) {
-		var r = new RegExp(t);
+		var r = new RegExp(toString(t));
 
 		if(!foundFrom && r.test(convertFrom)) {
 			foundFrom = t;
