@@ -7,6 +7,7 @@ module.exports = {
 	'notitle': no_title,
 	'lastseen': last_seen,
 	'convert': convert,
+	'eightball': eightball,
 	'_': no_command,
 	'_msg': _msg,
 	'_init': _init,
@@ -48,17 +49,17 @@ function save_config() {
 }
 
 function _msg(bot, from, to, text, message) {
-	if(config.notify_messages && config.notify_messages[nick]) {
-		var from;
-		config.notify_messages[nick].forEach(function(val) {
-			if(!from) {
-				from = val;
+	if(config.notify_messages && config.notify_messages[from]) {
+		var nick;
+		config.notify_messages[from].forEach(function(val) {
+			if(!nick) {
+				nick = val;
 			} else {
-				sayDirect(bot, nick, channel, from + ' says: ' + val);
+				sayDirect(bot, from, to, nick + ' says: ' + val);
 			}
 		});
 
-		delete config.notify_messages[nick];
+		delete config.notify_messages[from];
 	}
 
 	if(to !== bot.nick) {
@@ -146,10 +147,10 @@ function calc(bot, from, to, text, message) {
 }
 
 function exec(bot, from, to, text, message, is_calc) {
-	if(!is_calc && to !== bot.nick && bot.chans[to].users[from] !== '@') {
-		sayDirect(bot, from, to, 'Only ops may use this command.');
-		return;
-	}
+	// if(!is_calc && to !== bot.nick && bot.chans[to].users[from] !== '@') {
+	// 	sayDirect(bot, from, to, 'Only ops may use this command.');
+	// 	return;
+	// }
 
 	if(!text) {
 		if(is_calc) {
@@ -168,6 +169,8 @@ function exec(bot, from, to, text, message, is_calc) {
 		text = 'print(' + text + ')';
 	}
 
+	console.log('exec: ' + text);
+
 	try {
 		var vm = require('vm');
 
@@ -175,9 +178,13 @@ function exec(bot, from, to, text, message, is_calc) {
 		
 		var context = {
 			'print': function(text) {
-				output += text + ' ';
+				output += text.toString() + ' ';
 			}
 		};
+
+		context.print.toString = function() {
+			throw new Error('cannot print a function');
+		}
 
 		vm.runInNewContext(text, context, { 'timeout': 1000 });
 
@@ -411,6 +418,16 @@ function no_title(bot, from, to, text, message) {
 	}
 
 	sayDirect(bot, from, to, 'Ok');
+}
+
+function eightball(bot, from, to, text, message) {
+	var options = ['It is certain', 'It is decidedly so', 'Without a doubt', 'Yes, definitely', 'You may rely on it',
+				   'As I see it, yes', 'Most likely', 'Outlook good', 'Yes', 'Signs point to yes', 'Reply hazy try again',
+				   'Ask again later', 'Better not tell you now', 'Cannot predict now', 'Concentrate and ask again',
+				   'Don\'t count on it', 'My reply is no', 'My sources say no', 'Outlook not so good', 'Very doubtful'];
+
+	var choice = Math.floor(Math.random() * options.length);
+	sayDirect(bot, from, to, options[choice]);
 }
 
 function no_command(bot, from, to, text, message) {
