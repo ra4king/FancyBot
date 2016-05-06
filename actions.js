@@ -594,7 +594,7 @@ function writeToLog(channel, text) {
                     return (s < 10 ? '0' : '') + s;
                 }
 
-                var filename = channel + '.' + date.getUTCFullYear() + '-' + left_pad(date.getUTCMonth()+1) + '-' + left_pad(date.getUTCDate()) + '.log';
+                var filename = 'logs/' + channel + '.' + date.getUTCFullYear() + '-' + left_pad(date.getUTCMonth()+1) + '-' + left_pad(date.getUTCDate()) + '.log';
                 fs.appendFile(filename, data);
             }
 
@@ -609,7 +609,7 @@ function writeToLog(channel, text) {
                 }
 
                 last_date = date;
-                data += '[' + date.toUTCString() + '] ' + s[1] + '\n';
+                data += '[' + date.toUTCString() + ']  ' + s[1] + '\n';
             });
 
             append_log(last_date, data);
