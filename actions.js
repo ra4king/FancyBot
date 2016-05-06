@@ -407,7 +407,7 @@ function no_title(bot, from, to, text, message) {
         return;
     }
 
-    var url_regex = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?$/g;
+    var url_regex = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/g;
     var result = url_regex.exec(text);
     if(!result) {
         sayDirect(bot, from, to, 'Not a URL');
@@ -440,7 +440,7 @@ function eightball(bot, from, to, text, message) {
 }
 
 function no_command(bot, from, to, text, message) {
-    var url_regex = /(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?/g;
+    var url_regex = /(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
 
     var result;
     while((result = url_regex.exec(text)) != null) {
@@ -492,7 +492,7 @@ function no_command(bot, from, to, text, message) {
                         });
                     } else if(Math.floor(response.statusCode / 100) == 3) {
                         console.log('Got redirect (' + response.statusCode + ') for ' + url);
-                        var r = /^(https?\:\/\/)?(?:[\w\d-]+\.)+[\w\d-]+(?:\/[^\s]*)?$/;
+                        var r = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/;
                         if(response.headers.location && r.test(response.headers.location)) {
                             get_title(response.headers.location);
                         } else {
