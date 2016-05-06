@@ -9,18 +9,25 @@ module.exports = {
 	'convert': convert,
 	'eightball': eightball,
 	'_': no_command,
-	'_msg': _msg,
 	'_init': _init,
+	'_msg': _msg,
+	'_self': _self,
+	'_action': _action,
+	'_mode': _mode,
+	'_nick': _nick,
 	'_join': _join,
-	'_part': _part
+	'_part': _part,
+	'_kick': _kick
 };
+
+var fs = require('fs');
 
 var config;
 load_config();
 
 function load_config() {
 	try {
-		config = JSON.parse(require('fs').readFileSync('config.json'));
+		config = JSON.parse(fs.readFileSync('config.json'));
 		console.log('Loaded config');
 	} catch(e) {
 		console.error('ERROR: COULD NOT LOAD CONFIG');
@@ -28,27 +35,27 @@ function load_config() {
 	}
 }
 
-var save_count = 0;
-var last_timeout = null;
+var save_config_count = 0;
+var last_config_timeout = null;
 function save_config() {
-	if(save_count < 10) {
-		if(last_timeout) {
-			clearTimeout(last_timeout);
-			save_count++;
+	if(save_config_count < 10) {
+		if(last_config_timeout) {
+			clearTimeout(last_config_timeout);
+			save_config_count++;
 		}
 
-		last_timeout = setTimeout(function() {
-			save_count = 0;
-			last_timeout = null;
-			require('fs').writeFile('config.json', JSON.stringify(config, null, 4), function(err) {
+		last_config_timeout = setTimeout(function() {
+			save_config_count = 0;
+			last_config_timeout = null;
+			fs.writeFile('config.json', JSON.stringify(config, null, 4), function(err) {
 				if(err)
 					console.error('ERROR: COULD NOT WRITE CONFIG!');
 			});
-		}, 5000);
+		}, 1000);
 	}
 }
 
-function _msg(bot, from, to, text, message) {
+function handle_notify(bot, from, to, text, message) {
 	if(config.notify_messages && config.notify_messages[from]) {
 		var nick;
 		config.notify_messages[from].forEach(function(val) {
@@ -61,7 +68,9 @@ function _msg(bot, from, to, text, message) {
 
 		delete config.notify_messages[from];
 	}
+}
 
+function handle_last_seen(bot, from, to, text, message) {
 	if(to !== bot.nick) {
 		if(!config.last_seen) {
 			config.last_seen = {};
@@ -504,16 +513,55 @@ function no_command(bot, from, to, text, message) {
 	}
 }
 
+function _msg(bot, from, to, text, message) {
+	handle_notify(bot, from, to, text, message);
+
+	if(to !== bot.nick) {
+		handle_last_seen(bot, from, to, text, message);
+		writeToLog(to, '<' + from + '> ' + text);
+	}
+}
+
+function _self(bot, to, text) {
+	if(to === bot.channel) {
+		writeToLog(to, '<' + bot.nick + '> ' + text);
+	}
+}
+
+function _action(bot, from, to, text, message) {
+	handle_notify(bot, from, to, text, message);
+
+	if(to !== bot.nick) {
+		handle_last_seen(bot, from, to, text, message);
+
+		writeToLog(to, '* ' + from + ' ' + text);
+	}
+}
+
+function _mode(bot, channel, by, mode, argument, message) {
+	writeToLog(channel, '*** ' + by + ' sets mode: ' + mode + ' ' + argument);
+}
+
 function _init(bot, channel, message) {
 	console.log('Joined ' + channel);
 }
 
 function _join(bot, channel, nick, message) {
-	_msg(bot, nick, channel, '[joined ' + channel + ']', message);
+	handle_notify(bot, nick, channel, '[joined ' + channel + ']', message);
+	handle_last_seen(bot, nick, channel, '[joined ' + channel + ']', message);
+	writeToLog(channel, '*** ' + nick + ' (' + message.nick + '!' + message.user + '@' + message.host + ') has joined ' + channel);
 }
 
-function _part(bot, channel, nick, message) {
-	// nothing to do...
+function _part(bot, channel, nick, reason, message) {
+	writeToLog(channel, '*** ' + nick + ' (' + message.nick + '!' + message.user + '@' + message.host + ') has left ' + channel + ' (' + reason + ')');
+}
+
+function _kick(bot, channel, nick, by, reason, message) {
+	writeToLog(channel, '*** ' + by + ' has kicked ' + nick + ' (' + message.nick + '!' + message.user + '@' + message.host + ') from ' + channel + ' (' + reason + ')');
+}
+
+function _nick(bot, oldnick, newnick, channels, message) {
+	writeToLog(channels[0], '*** ' + oldnick + ' is now known as ' + newnick);
 }
 
 function sayDirect(bot, from, to, message) {
@@ -524,15 +572,53 @@ function sayDirect(bot, from, to, message) {
 	}
 }
 
-// function slapRandomly(bot, channel) {
-// 	setTimeout(function() {
-// 		try {
-// 			var nicks = Object.keys(bot.chans[channel].users);
-// 			var nick = nicks[Math.floor(Math.random() * nicks.length)];
-// 			bot.action(channel, 'slaps ' + nick);
-// 			slapRandomly(bot, channel);
-// 		} catch(e) {
-// 			console.error('Something went very wrong with slap! ' + e.message);
-// 		}
-// 	}, Math.round(60000 * (Math.random() * 200 + 15)));
-// }
+var save_log_count = 0;
+var last_log_timeout = null;
+var log_buffer = [];
+
+function writeToLog(channel, text) {
+	log_buffer.push([new Date(), text]);
+
+	if(save_log_count < 10) {
+		if(last_log_timeout) {
+			clearTimeout(last_log_timeout);
+			save_log_count++;
+		}
+
+		last_log_timeout = setTimeout(function() {
+			save_log_count = 0;
+			last_log_timeout = null;
+
+			function append_log(date, data) {
+				function left_pad(s) {
+					if(s < 10) {
+						return '0' + s;
+					} else {
+						return s;
+					}
+				}
+
+				var filename = channel + '.' + date.getUTCFullYear() + '-' + left_pad(date.getUTCMonth()+1) + '-' + left_pad(date.getUTCDate()) + '.log';
+				fs.appendFile(filename, data);
+			}
+
+			var data = '';
+			var last_date = null;
+			log_buffer.forEach(function(s, idx) {
+				var date = s[0];
+
+				if(last_date != null && date.getUTCDate() != last_date.getUTCDate()) {
+					append_log(date, data);
+					data = '';
+				}
+
+				last_date = date;
+				data += '[' + date.toUTCString() + '] ' + s[1] + '\n';
+			});
+
+			append_log(last_date, data);
+
+			log_buffer = [];
+		}, 1000);
+	}
+}
