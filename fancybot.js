@@ -4,6 +4,15 @@ var reload = require('require-reload')(require);
 var actions = reload('./actions');
 var log_server = reload('./log_server');
 
+var console_log = console.log;
+var console_err = console.error;
+console.log = function(text) {
+    console_log(new Date().toUTCString() + ' - ' + text);
+}
+console.error = function(text) {
+    console_err(new Date().toUTCString() + ' - ' + text);
+}
+
 var name = 'FancyBot';
 var chan = '#java-gaming';
 

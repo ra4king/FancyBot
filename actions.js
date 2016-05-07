@@ -23,15 +23,6 @@ module.exports = {
 
 var fs = require('fs');
 
-var console_log = console.log;
-var console_err = console.error;
-console.log = function(text) {
-    console_log(new Date().toUTCString() + ' - ' + text);
-}
-console.error = function(text) {
-    console_log(new Date().toUTCString() + ' - ' + text);
-}
-
 var config;
 load_config();
 
@@ -235,72 +226,38 @@ function init_units() {
     var fahrenheit = /fahrenheit|f/;
     var kelvin = /kelvin|k/;
 
+    var regex = /(-?\d+(\.\d+)?) ?/;
+
+    function toString(rgx) {
+        var s = rgx.toString();
+        return s.substring(1, s.length - 1);
+    }
+
+    var unitsRegex = '(' + toString(inches);
+    [yards, feet, miles, millimeters, centimeters, decimeters, meters, kilometers, celsius, fahrenheit, kelvin].forEach(function(t) {
+        unitsRegex += '|' + toString(t);
+    })
+    unitsRegex += ')';
+
+    units_regex = new RegExp(toString(regex) + unitsRegex + ' to ' + unitsRegex);
+
     units = {};
-
-    units[inches] = {};
-    {
-        units[inches][yards] = 1.0/3.0;
-        units[inches][feet] = 1.0/12.0;
-        units[inches][miles] = 1.0/(12.0 * 5280.0);
-        units[inches][millimeters] = 25.4;
-        units[inches][centimeters] = 2.54;
-        units[inches][decimeters] = 0.254;
-        units[inches][meters] = 0.0254;
-        units[inches][kilometers] = 0.0000254;
-    }
-
-    units[yards] = {};
-    {
-        units[yards][miles] = 1.0/1760.0;
-        units[yards][millimeters] = 914.4;
-        units[yards][centimeters] = 91.44;
-        units[yards][decimeters] = 9.144;
-        units[yards][meters] = 0.9144;
-        units[yards][kilometers] = 0.009144;
-    }
 
     units[feet] = {};
     {
+        units[feet][inches] = 12.0;
+        units[feet][yards] = 3.0;
         units[feet][miles] = 1.0/5280.0;
-        units[feet][millimeters] = 304.8;
-        units[feet][centimeters] = 30.48;
-        units[feet][decimeters] = 3.048;
         units[feet][meters] = 0.3048;
-        units[feet][kilometers] = 0.0003048;
-    }
-
-    units[miles] = {};
-    {
-        units[miles][millimeters] = 1609344;
-        units[miles][centimeters] = 160934.4;
-        units[miles][decimeters] = 16093.44;
-        units[miles][meters] = 1609.344;
-        units[miles][kilometers] = 1.609344;
-    }
-
-    units[millimeters] = {};
-    {
-        units[millimeters][centimeters] = 0.1;
-        units[millimeters][decimeters] = 0.01;
-        units[millimeters][meters] = 0.001;
-        units[millimeters][kilometers] = 0.000001;
-    }
-
-    units[centimeters] = {};{
-        units[centimeters][decimeters] = 0.1;
-        units[centimeters][meters] = 0.01;
-        units[centimeters][kilometers] = 0.00001;
-    }
-
-    units[decimeters] = {};
-    {
-        units[decimeters][meters] = 0.1;
-        units[decimeters][kilometers] = 0.0001;
     }
 
     units[meters] = {};
     {
+        units[meters][millimeters] = 1000.0;
+        units[meters][centimeters] = 100.0;
+        units[meters][decimeters] = 10.0;
         units[meters][kilometers] = 0.001;
+        units[meters][feet] = 3.28084;
     }
 
     units[celsius] = {};
@@ -320,36 +277,6 @@ function init_units() {
             }
         };
     }
-
-    units[fahrenheit] = {};
-    {
-        units[fahrenheit][kelvin] = function(val, reverse) {
-            if(reverse) {
-                return ((val - 273.15) * 9.0 / 5.0) + 32.0;
-            } else {
-                return ((val - 32.0) * 5.0 / 9.0) + 273.15;
-            }
-        };
-    }
-
-    units[kelvin] = {};
-
-    var regex = /(-?\d+(\.\d+)?) ?/;
-
-    function toString(rgx) {
-        var s = rgx.toString();
-        return s.substring(1, s.length - 1);
-    }
-
-    var unitsRegex = '(' + toString(inches);
-    for(var t in units) {
-        if(t != inches) {
-            unitsRegex += '|' + toString(t);
-        }
-    }
-    unitsRegex += ')';
-
-    units_regex = new RegExp(toString(regex) + unitsRegex + ' to ' + unitsRegex);
 }
 
 function convert(bot, from, to, text, message, notify_fail) {
@@ -370,66 +297,94 @@ function convert(bot, from, to, text, message, notify_fail) {
 
     console.log(value + ' ' + convertFrom + ' to ' + convertTo);
 
-    var reversed = false;
     var foundFrom = null;
+    var foundFromBase = null;
+    var foundToBase = null;
     var foundTo = null;
 
     function toString(rgx) {
+        if(!rgx) return null;
         var s = rgx.toString();
-        return s.substring(1, s.length - 1);
+        return '^(?:' + s.substring(1, s.length - 1) + ')$';
+    }
+
+    function foundAll() {
+        return foundFrom && foundFromBase && foundToBase && foundTo;
     }
 
     for(var t in units) {
         var r = new RegExp(toString(t));
 
-        if(!foundFrom && r.test(convertFrom)) {
+        if(r.test(convertFrom)) {
             foundFrom = t;
-            if(foundTo) {
-                reversed = true;
-                break;
+            foundFromBase = t;
+        }
+        if(r.test(convertTo)) {
+            foundTo = t;
+            foundToBase = t;
+        }
+
+        if(foundAll()) {
+            break;
+        }
+
+        for(var t2 in units[t]) {
+            r = new RegExp(toString(t2));
+
+            if(!foundFrom && r.test(convertFrom)) {
+                foundFrom = t2;
+                foundFromBase = t;
+            }
+            if(!foundTo && r.test(convertTo)) {
+                foundTo = t2;
+                foundToBase = t;
             }
         }
-        if(!foundTo && r.test(convertTo)) {
-            foundTo = t;
-            if(foundFrom) {
-                break;
-            }
+
+        if(foundAll()) {
+            break;
         }
     }
+
+    //console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
 
     function unsupported() {
         sayDirect(bot, from, to, 'Unsupported conversion');
     }
 
-    var converted;
-    if(foundFrom == foundTo) {
-        converted = value;
-    } else {
-        var factor;
-        if(reversed) {
-            if(!units[foundTo] || !units[foundTo][foundFrom]) {
-                unsupported();
-                return;
-            }
+    if(!foundAll()) {
+        unsupported();
+        return;
+    }
 
-            factor = units[foundTo][foundFrom];
-        } else {
-            if(!units[foundFrom] || !units[foundFrom][foundTo]) {
-                unsupported();
-                return;
-            }
-
-            factor = units[foundFrom][foundTo];
-        }
-
-        
-        if(typeof factor == 'function') {
-            converted = factor(value, reversed);
+    function apply(value, factor, reversed) {
+        if(typeof factor === 'function') {
+            return factor(value, reversed);
         } else if(reversed) {
-            converted = value / factor;
+            return value / factor;
         } else {
-            converted = value * factor;
+            return value * factor;
         }
+    }
+
+    var converted;
+    if(foundFrom !== foundFromBase) {
+        var factor = units[foundFromBase][foundFrom];
+        converted = apply(value, factor, true);
+    }
+
+    if(foundFromBase !== foundToBase) {
+        var factor = units[foundFromBase][foundToBase];
+        if(!factor) {
+            unsupported();
+            return;
+        }
+        converted = apply(converted, factor, false);
+    }
+
+    if(foundToBase !== foundTo) {
+        var factor = units[foundToBase][foundTo];
+        converted = apply(converted, factor, false);
     }
 
     sayDirect(bot, from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
