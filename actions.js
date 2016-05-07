@@ -469,23 +469,43 @@ function money(bot, from, to, text, message) {
 
     console.log(value + ' ' + fromCurr + ' to ' + toCurr);
 
-    require('http').get('http://api.fixer.io/latest?base=' + fromCurr + '&symbols=' + toCurr, function(response) {
-        var data = '';
-        response.on('data', function(d) {
-            data += d.toString();
+    if(fromCurr === 'BTC') {
+        require('https').get('https://api.bitcoinaverage.com/ticker/global/' + toCurr + '/', function(response) {
+            var data = '';
+            response.on('data', function(d) {
+                data += d.toString();
+            });
+            response.on('end', function() {
+                try {
+                    var json = JSON.parse(data);
+                    sayDirect(bot, from, to, 'date = ' + new Date(json.timestamp).toUTCString() + ', ' + value + ' BTC = ' + (value * json.last) + ' ' + toCurr);
+                } catch(e) {
+                    sayDirect(bot, from, to, 'Unsupported conversion');
+                    console.error(e.message + ' - ' + data);
+                }
+            });
+        }).on('error', function(err) {
+            sayDirect(bot, from, to, 'Error accessing bitcoinaverage API');
         });
-        response.on('end', function() {
-            try {
-                var json = JSON.parse(data);
-                sayDirect(bot, from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + (value * json.rates[toCurr]) + ' ' + toCurr);
-            } catch(e) {
-                sayDirect(bot, from, to, 'Unsupported conversion');
-                console.error(e.message + ' - ' + data);
-            }
+    } else {
+        require('http').get('http://api.fixer.io/latest?base=' + fromCurr + '&symbols=' + toCurr, function(response) {
+            var data = '';
+            response.on('data', function(d) {
+                data += d.toString();
+            });
+            response.on('end', function() {
+                try {
+                    var json = JSON.parse(data);
+                    sayDirect(bot, from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + (value * json.rates[toCurr]) + ' ' + toCurr);
+                } catch(e) {
+                    sayDirect(bot, from, to, 'Unsupported conversion');
+                    console.error(e.message + ' - ' + data);
+                }
+            });
+        }).on('error', function(err) {
+            sayDirect(bot, from, to, 'Error accessing fixer.io API');
         });
-    }).on('error', function(err) {
-        sayDirect(bot, from, to, 'Error accessing fixer.io API');
-    });
+    }
 }
 
 function no_title(bot, from, to, text, message) {
