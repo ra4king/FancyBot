@@ -324,10 +324,6 @@ function convert(bot, from, to, text, message, notify_fail) {
             foundToBase = t;
         }
 
-        if(foundAll()) {
-            break;
-        }
-
         for(var t2 in units[t]) {
             r = new RegExp(toString(t2));
 
@@ -340,13 +336,9 @@ function convert(bot, from, to, text, message, notify_fail) {
                 foundToBase = t;
             }
         }
-
-        if(foundAll()) {
-            break;
-        }
     }
 
-    //console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
+    console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
 
     function unsupported() {
         sayDirect(bot, from, to, 'Unsupported conversion');
@@ -361,16 +353,18 @@ function convert(bot, from, to, text, message, notify_fail) {
         if(typeof factor === 'function') {
             return factor(value, reversed);
         } else if(reversed) {
+            console.log('applying 1/' + factor + ' to ' + value);
             return value / factor;
         } else {
+            console.log('applying ' + factor + ' to ' + value);
             return value * factor;
         }
     }
 
-    var converted;
+    var converted = value;
     if(foundFrom !== foundFromBase) {
         var factor = units[foundFromBase][foundFrom];
-        converted = apply(value, factor, true);
+        converted = apply(converted, factor, true);
     }
 
     if(foundFromBase !== foundToBase) {
