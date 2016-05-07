@@ -8,6 +8,7 @@ module.exports = {
     'lastseen': last_seen,
     'convert': convert,
     'eightball': eightball,
+    '8ball': eightball,
     '_': no_command,
     '_init': _init,
     '_msg': _msg,
@@ -21,6 +22,15 @@ module.exports = {
 };
 
 var fs = require('fs');
+
+var console_log = console.log;
+var console_err = console.error;
+console.log = function(text) {
+    console_log(new Date().toUTCString() + ' - ' + text);
+}
+console.error = function(text) {
+    console_log(new Date().toUTCString() + ' - ' + text);
+}
 
 var config;
 load_config();
@@ -202,7 +212,7 @@ function exec(bot, from, to, text, message, is_calc) {
         } else if(!output) {
             sayDirect(bot, from, to, 'No output');
         } else {
-            sayDirect(bot, from, to, output.replace('\n', ' '));
+            sayDirect(bot, from, to, output.replace(/\n/g, ' '));
         }
     } catch(e) {
         sayDirect(bot, from, to, 'Error: ' + e.message);
@@ -215,6 +225,7 @@ init_units();
 
 function init_units() {
     var inches = /inch(?:es)?/;
+    var yards = /yards?/;
     var feet = /f(?:ee|oo)t/;
     var miles = /miles?/
     var millimeters = /millimet(?:er|re)s?|mm/;
@@ -229,6 +240,7 @@ function init_units() {
 
     units[inches] = {};
     {
+        units[inches][yards] = 1.0/3.0;
         units[inches][feet] = 1.0/12.0;
         units[inches][miles] = 1.0/(12.0 * 5280.0);
         units[inches][millimeters] = 25.4;
@@ -236,6 +248,16 @@ function init_units() {
         units[inches][decimeters] = 0.254;
         units[inches][meters] = 0.0254;
         units[inches][kilometers] = 0.0000254;
+    }
+
+    units[yards] = {};
+    {
+        units[yards][miles] = 1.0/1760.0;
+        units[yards][millimeters] = 914.4;
+        units[yards][centimeters] = 91.44;
+        units[yards][decimeters] = 9.144;
+        units[yards][meters] = 0.9144;
+        units[yards][kilometers] = 0.009144;
     }
 
     units[feet] = {};
