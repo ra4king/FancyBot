@@ -7,6 +7,7 @@ module.exports = {
     'notitle': no_title,
     'lastseen': last_seen,
     'convert': convert,
+    'money': money,
     'eightball': eightball,
     '8ball': eightball,
     '_': no_command,
@@ -213,51 +214,116 @@ var units_regex;
 init_units();
 
 function init_units() {
-    var inches = /inch(?:es)?/;
-    var yards = /yards?/;
-    var feet = /f(?:ee|oo)t/;
-    var miles = /miles?/
-    var millimeters = /millimet(?:er|re)s?|mm/;
-    var centimeters = /centimet(?:er|re)s?|cm/;
-    var decimeters = /decimet(?:er|re)s?|dm/;
-    var meters = /met(?:er|re)s?|m/;
-    var kilometers = /kilomet(?:er|re)s?|km/;
+    var inch = /inch(?:es)?/;
+    var yard = /yards?/;
+    var foot = /f(?:ee|oo)t/;
+    var mile = /miles?/;
+
+    var millimeter = /millimet(?:er|re)s?|mm/;
+    var centimeter = /centimet(?:er|re)s?|cm/;
+    var meter = /met(?:er|re)s?|m/;
+    var kilometer = /kilomet(?:er|re)s?|km/;
+
+    var lightyear = /light ?years?|ly/;
+    var astronomical = /astronomical units?|au/;
+    var parsec = /parsecs?|pc/;
+
+    var teaspoon = /teaspoons?|tsp/;
+    var tablespoon = /tablespoons?|tbsp/;
+    var flounce = /fluid ounces?|fl ?oz/;
+    var cup = /cups?/;
+    var pint = /pints?|pt/;
+    var quart = /quarts?|qt/;
+    var gallon = /gallons?|gal/;
+
+    var milliliter = /milliliters?|ml/;
+    var liter = /liters?|l/;
+    var kiloliter = /kiloliters?|kl/;
+
+    var ounce = /ounces?|oz/;
+    var pound = /pounds?|lbs?/;
+    var ton = /tons?/;
+
+    var milligram = /milligrams?|mg/;
+    var gram = /grams?|g/;
+    var kilogram = /kilograms?|kg/;
+
     var celsius = /celsius|c/;
     var fahrenheit = /fahrenheit|f/;
     var kelvin = /kelvin|k/;
 
-    var regex = /(-?\d+(\.\d+)?) ?/;
+    var regex = /(-?\d+(?:\.\d+)?) ?/;
 
     function toString(rgx) {
         var s = rgx.toString();
         return s.substring(1, s.length - 1);
     }
 
-    var unitsRegex = '(' + toString(inches);
-    [yards, feet, miles, millimeters, centimeters, decimeters, meters, kilometers, celsius, fahrenheit, kelvin].forEach(function(t) {
+    var unitsRegex = '(' + toString(inch);
+    [yard, foot, mile, millimeter, centimeter, meter, kilometer, teaspoon, tablespoon, flounce, cup, pint, quart, gallon, milliliter, liter, kiloliter,
+     ounce, pound, ton, milligram, gram, kilogram, lightyear, astronomical, parsec, celsius, fahrenheit, kelvin].forEach(function(t) {
         unitsRegex += '|' + toString(t);
     })
     unitsRegex += ')';
 
-    units_regex = new RegExp(toString(regex) + unitsRegex + ' to ' + unitsRegex);
+    units_regex = new RegExp('^' + toString(regex) + unitsRegex + ' to ' + unitsRegex + '$');
 
     units = {};
 
-    units[feet] = {};
+    units[foot] = {};
     {
-        units[feet][inches] = 12.0;
-        units[feet][yards] = 3.0;
-        units[feet][miles] = 1.0/5280.0;
-        units[feet][meters] = 0.3048;
+        units[foot][inch] = 12.0;
+        units[foot][yard] = 3.0;
+        units[foot][mile] = 1.0/5280.0;
+        units[foot][meter] = 0.3048;
     }
 
-    units[meters] = {};
+    units[meter] = {};
     {
-        units[meters][millimeters] = 1000.0;
-        units[meters][centimeters] = 100.0;
-        units[meters][decimeters] = 10.0;
-        units[meters][kilometers] = 0.001;
-        units[meters][feet] = 3.28084;
+        units[meter][millimeter] = 1000.0;
+        units[meter][centimeter] = 100.0;
+        units[meter][kilometer] = 0.001;
+        units[meter][foot] = 3.28084;
+        units[meter][lightyear] = 0.00000000000000010570008340246154637094605244851;
+    }
+
+    units[lightyear] = {};
+    {
+        units[lightyear][meter] = 9460730472580800;
+        units[lightyear][astronomical] = 63241.077;
+        units[lightyear][parsec] = 0.306601;
+    }
+
+    units[gallon] = {};
+    {
+        units[gallon][teaspoon] = 768.0;
+        units[gallon][tablespoon] = 256.0;
+        units[gallon][flounce] = 128.0;
+        units[gallon][cup] = 16.0;
+        units[gallon][pint] = 8.0;
+        units[gallon][quart] = 4.0;
+        units[gallon][liter] = 3.78541;
+    }
+
+    units[liter] = {};
+    {
+        units[liter][milliliter] = 1000.0;
+        units[liter][kiloliter] = 0.001;
+        units[liter][gallon] = 0.264172;
+    }
+
+    units[pound] = {};
+    {
+        units[pound][ounce] = 16.0;
+        units[pound][ton] = 1.0/2000.0;
+        units[pound][gram] = 453.592;
+    }
+
+    units[gram] = {};
+    {
+        units[gram][milligram] = 1000.0;
+        units[gram][kilogram] = 0.001;
+        units[gram][pound] = 0.00220462;
     }
 
     units[celsius] = {};
@@ -285,15 +351,15 @@ function convert(bot, from, to, text, message, notify_fail) {
         return;
     }
 
-    var result = new RegExp(units_regex).exec(text);
+    var result = new RegExp(units_regex).exec(text.toLowerCase());
     if(!result) {
         sayDirect(bot, from, to, 'Incorrect conversion request');
         return;
     }
 
     var value = Number(result[1]);
-    var convertFrom = result[3];
-    var convertTo = result[4];
+    var convertFrom = result[2];
+    var convertTo = result[3];
 
     console.log(value + ' ' + convertFrom + ' to ' + convertTo);
 
@@ -338,7 +404,7 @@ function convert(bot, from, to, text, message, notify_fail) {
         }
     }
 
-    console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
+    // console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
 
     function unsupported() {
         sayDirect(bot, from, to, 'Unsupported conversion');
@@ -382,6 +448,44 @@ function convert(bot, from, to, text, message, notify_fail) {
     }
 
     sayDirect(bot, from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
+}
+
+function money(bot, from, to, text, message) {
+    if(!text) {
+        sayDirect(bot, from, to, 'Usage: !money 1 USD to EUR');
+        return;
+    }
+
+    var money_regex = /^(\d+(?:\.\d+)?) ?([A-Z]{3}) TO ([A-Z]{3})$/;
+    var result = money_regex.exec(text.toUpperCase());
+    if(!result) {
+        sayDirect(bot, from, to, 'Incorrect money conversion request');
+        return;
+    }
+
+    var value = Number(result[1]);
+    var fromCurr = result[2];
+    var toCurr = result[3];
+
+    console.log(value + ' ' + fromCurr + ' to ' + toCurr);
+
+    require('http').get('http://api.fixer.io/latest?base=' + fromCurr + '&symbols=' + toCurr, function(response) {
+        var data = '';
+        response.on('data', function(d) {
+            data += d.toString();
+        });
+        response.on('end', function() {
+            try {
+                var json = JSON.parse(data);
+                sayDirect(bot, from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + (value * json.rates[toCurr]) + ' ' + toCurr);
+            } catch(e) {
+                sayDirect(bot, from, to, 'Unsupported conversion');
+                console.error(e.message + ' - ' + data);
+            }
+        });
+    }).on('error', function(err) {
+        sayDirect(bot, from, to, 'Error accessing fixer.io API');
+    });
 }
 
 function no_title(bot, from, to, text, message) {
