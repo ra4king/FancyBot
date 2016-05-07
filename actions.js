@@ -191,28 +191,26 @@ function exec(bot, from, to, text, message, is_calc) {
     console.log('exec: ' + text);
 
     try {
-        var vm = require('vm');
-
         var output = '';
-        
         var context = {
             'print': function(text) {
                 output += text.toString() + ' ';
-            }
+            },
+            'Promise': undefined
         };
 
         context.print.toString = function() {
             throw new Error('cannot print a function');
         }
 
-        vm.runInNewContext(text, context, { 'timeout': 1000 });
+        require('vm').runInNewContext(text, context, { 'timeout': 1000 });
 
         if(output.length > 255) {
             sayDirect(bot, from, to, 'Too much output');
         } else if(!output) {
             sayDirect(bot, from, to, 'No output');
         } else {
-            sayDirect(bot, from, to, output.replace(/\n/g, ' '));
+            sayDirect(bot, from, to, output.replace(/\n/g, ' ').replace(/ +/, ' '));
         }
     } catch(e) {
         sayDirect(bot, from, to, 'Error: ' + e.message);
@@ -235,6 +233,7 @@ function init_units() {
     var kilometers = /kilomet(?:er|re)s?|km/;
     var celsius = /celsius|c/;
     var fahrenheit = /fahrenheit|f/;
+    var kelvin = /kelvin|k/;
 
     units = {};
 
@@ -313,11 +312,29 @@ function init_units() {
                 return (val * 9.0 / 5.0) + 32.0;
             }
         };
+        units[celsius][kelvin] = function(val, reverse) {
+            if(reverse) {
+                return val - 273.15;
+            } else {
+                return val + 273.15;
+            }
+        };
     }
 
     units[fahrenheit] = {};
+    {
+        units[fahrenheit][kelvin] = function(val, reverse) {
+            if(reverse) {
+                return ((val - 273.15) * 9.0 / 5.0) + 32.0;
+            } else {
+                return ((val - 32.0) * 5.0 / 9.0) + 273.15;
+            }
+        };
+    }
 
-    var regex = /(-?\d+(\.\d+)?) /;
+    units[kelvin] = {};
+
+    var regex = /(-?\d+(\.\d+)?) ?/;
 
     function toString(rgx) {
         var s = rgx.toString();
