@@ -18,7 +18,7 @@ var chan = '#java-gaming';
 
 var bot = new irc.Client('irc.freenode.net', name, {
     userName: name,
-    realEName: name,
+    realName: name,
     channels: [chan],
     autoRejoin: true
 });
@@ -26,11 +26,12 @@ bot.channel = chan;
 
 bot.on('registered', function(message) {
     console.log('Successfully joined freenode!');
+    actions['_init'](bot, message);
 });
 
 bot.on('join', function(channel, nick, message) {
     if(nick === bot.nick) {
-        actions['_init'](bot, channel, message);
+        actions['_joined'](bot, channel, message);
     } else {
         actions['_join'](bot, channel, nick, message);
     }
@@ -95,7 +96,7 @@ bot.on('-mode', function(channel, by, mode, argument, message) {
 });
 
 bot.on('error', function(message) {
-    console.error('ERROR: ' + message);
+    console.error('ERROR: ' + require('util').inspect(message));
 });
 
 process.on('exit', function() {

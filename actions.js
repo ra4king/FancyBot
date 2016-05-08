@@ -2,6 +2,7 @@ module.exports = {
     'help': help,
     'ping': ping,
     'notify': notify,
+    'tell': notify,
     'calc': calc,
     'exec': exec,
     'notitle': no_title,
@@ -12,6 +13,7 @@ module.exports = {
     '8ball': eightball,
     '_': no_command,
     '_init': _init,
+    '_joined': _joined,
     '_msg': _msg,
     '_self': _self,
     '_action': _action,
@@ -26,7 +28,6 @@ var fs = require('fs');
 
 var config;
 load_config();
-
 function load_config() {
     try {
         config = JSON.parse(fs.readFileSync('config.json'));
@@ -59,12 +60,12 @@ function save_config() {
 
 function handle_notify(bot, from, to, text, message) {
     if(config.notify_messages && config.notify_messages[from]) {
-        var nick;
         config.notify_messages[from].forEach(function(val) {
-            if(!nick) {
-                nick = val;
-            } else {
-                sayDirect(bot, from, to, nick + ' says: ' + val);
+            if(val.pm) {
+                bot.say(from, val.nick + ' says: ' + val.msg);
+            }
+            else {
+                sayDirect(bot, from, to, val.nick + ' says: ' + val.msg);
             }
         });
 
@@ -135,17 +136,20 @@ function notify(bot, from, to, text, message) {
         return;
     }
 
-    var nick = text.substring(0, idx).trim();
-    var msg = text.substring(idx + 1).trim();
+    var notify = {
+        nick: text.substring(0, idx).trim(),
+        msg: text.substring(idx + 1).trim(),
+        pm: to === bot.nick
+    };
 
     if(!config.notify_messages) {
         config.notify_messages = {};
     }
 
-    if(config.notify_messages[nick]) {
-        config.notify_messages[nick].push(msg);
+    if(config.notify_messages[notify.nick]) {
+        config.notify_messages[notify.nick].push(notify);
     } else {
-        config.notify_messages[nick] = [from, msg];
+        config.notify_messages[notify.nick] = [notify];
     }
 
     save_config();
@@ -186,7 +190,7 @@ function exec(bot, from, to, text, message, is_calc) {
         var output = '';
         var context = {
             'print': function(text) {
-                output += text.toString() + ' ';
+                output += text + ' ';
             },
             'Promise': undefined
         };
@@ -223,7 +227,6 @@ function init_units() {
     var centimeter = /centimet(?:er|re)s?|cm/;
     var meter = /met(?:er|re)s?|m/;
     var kilometer = /kilomet(?:er|re)s?|km/;
-
     var lightyear = /light ?years?|ly/;
     var astronomical = /astronomical units?|au/;
     var parsec = /parsecs?|pc/;
@@ -236,9 +239,15 @@ function init_units() {
     var quart = /quarts?|qt/;
     var gallon = /gallons?|gal/;
 
-    var milliliter = /milliliters?|ml/;
-    var liter = /liters?|l/;
-    var kiloliter = /kiloliters?|kl/;
+    var cubic_millimeter = /cubic (?:millimet(?:er|re)s?|mm)/;
+    var cubic_centimeter = /cubic (?:centimet(?:er|re)s?|cm)/;
+    var cubic_meter = /cubic (?:met(?:er|re)s?|m)/;
+    var cubic_kilometer = /cubic (?:kilomet(?:er|re)s?|km)/;
+    var cubic_lightyear = /cubic (?:light ?years?|ly)/;
+
+    var milliliter = /millilit(?:er|re)s?|ml/;
+    var liter = /lit(?:er|re)s?|l/;
+    var kiloliter = /kilolit(?:er|re)s?|kl/;
 
     var ounce = /ounces?|oz/;
     var pound = /pounds?|lbs?/;
@@ -261,9 +270,10 @@ function init_units() {
 
     var unitsRegex = '(' + toString(inch);
     [yard, foot, mile, millimeter, centimeter, meter, kilometer, teaspoon, tablespoon, flounce, cup, pint, quart, gallon, milliliter, liter, kiloliter,
-     ounce, pound, ton, milligram, gram, kilogram, lightyear, astronomical, parsec, celsius, fahrenheit, kelvin].forEach(function(t) {
+     cubic_millimeter, cubic_centimeter, cubic_meter, cubic_kilometer, cubic_lightyear, ounce, pound, ton, milligram, gram, kilogram, lightyear, astronomical, parsec,
+     celsius, fahrenheit, kelvin].forEach(function(t) {
         unitsRegex += '|' + toString(t);
-    })
+    });
     unitsRegex += ')';
 
     units_regex = new RegExp('^' + toString(regex) + unitsRegex + ' to ' + unitsRegex + '$');
@@ -284,14 +294,19 @@ function init_units() {
         units[meter][centimeter] = 100.0;
         units[meter][kilometer] = 0.001;
         units[meter][foot] = 3.28084;
-        units[meter][lightyear] = 0.00000000000000010570008340246154637094605244851;
+        units[meter][lightyear] = Number('1.0570008340246154637094605244851E-16');
+        units[meter][astronomical] = Number('6.68459e-12');
+        units[meter][parsec] = Number('3.24078e-17');
     }
 
-    units[lightyear] = {};
+    units[cubic_meter] = {};
     {
-        units[lightyear][meter] = 9460730472580800;
-        units[lightyear][astronomical] = 63241.077;
-        units[lightyear][parsec] = 0.306601;
+        units[cubic_meter][cubic_millimeter] = 1000000000;
+        units[cubic_meter][cubic_centimeter] = 1000000;
+        units[cubic_meter][cubic_kilometer] = 0.000000001;
+        units[cubic_meter][lightyear] = Number('1.18093e-48');
+        units[cubic_meter][gallon] = 264.172;
+        units[cubic_meter][liter] = 1000.0;
     }
 
     units[gallon] = {};
@@ -303,6 +318,7 @@ function init_units() {
         units[gallon][pint] = 8.0;
         units[gallon][quart] = 4.0;
         units[gallon][liter] = 3.78541;
+        units[gallon][cubic_meter] = 0.00378541;
     }
 
     units[liter] = {};
@@ -310,6 +326,7 @@ function init_units() {
         units[liter][milliliter] = 1000.0;
         units[liter][kiloliter] = 0.001;
         units[liter][gallon] = 0.264172;
+        units[liter][cubic_meter] = 0.001;
     }
 
     units[pound] = {};
@@ -352,6 +369,7 @@ function convert(bot, from, to, text, message, notify_fail) {
     }
 
     var result = new RegExp(units_regex).exec(text.toLowerCase());
+
     if(!result) {
         sayDirect(bot, from, to, 'Incorrect conversion request');
         return;
@@ -469,8 +487,22 @@ function money(bot, from, to, text, message) {
 
     console.log(value + ' ' + fromCurr + ' to ' + toCurr);
 
-    if(fromCurr === 'BTC') {
-        require('https').get('https://api.bitcoinaverage.com/ticker/global/' + toCurr + '/', function(response) {
+    if(fromCurr === toCurr) {
+        sayDirect(bot, from, to, 'date = ' + new Date().toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + value + ' ' + toCurr);
+    }
+    else if(fromCurr === 'BTC' || toCurr === 'BTC') {
+        var reversed = false;
+
+        var targetCurr;
+
+        if(toCurr === 'BTC') {
+            targetCurr = fromCurr;
+            reversed = true;
+        } else {
+            targetCurr = toCurr;
+        }
+
+        require('https').get('https://api.bitcoinaverage.com/ticker/global/' + targetCurr + '/', function(response) {
             var data = '';
             response.on('data', function(d) {
                 data += d.toString();
@@ -478,7 +510,11 @@ function money(bot, from, to, text, message) {
             response.on('end', function() {
                 try {
                     var json = JSON.parse(data);
-                    sayDirect(bot, from, to, 'date = ' + new Date(json.timestamp).toUTCString() + ', ' + value + ' BTC = ' + (value * json.last) + ' ' + toCurr);
+                    var converted = reversed ? value / json.last : value * json.last;
+
+                    converted = Math.round(converted * 100) / 100;
+
+                    sayDirect(bot, from, to, 'date = ' + new Date(json.timestamp).toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
                 } catch(e) {
                     sayDirect(bot, from, to, 'Unsupported conversion');
                     console.error(e.message + ' - ' + data);
@@ -496,7 +532,13 @@ function money(bot, from, to, text, message) {
             response.on('end', function() {
                 try {
                     var json = JSON.parse(data);
-                    sayDirect(bot, from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + (value * json.rates[toCurr]) + ' ' + toCurr);
+                    if(!json.rates[toCurr])
+                        throw new Error('unsupported');
+
+                    var converted = value * json.rates[toCurr];
+                    converted = Math.round(converted * 100) / 100;
+
+                    sayDirect(bot, from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
                 } catch(e) {
                     sayDirect(bot, from, to, 'Unsupported conversion');
                     console.error(e.message + ' - ' + data);
@@ -654,7 +696,14 @@ function _mode(bot, channel, by, mode, argument, message) {
     writeToLog(channel, '*** ' + by + ' sets mode: ' + mode + ' ' + argument);
 }
 
-function _init(bot, channel, message) {
+function _init(bot, message) {
+    if(config.password) {
+        console.log('Identifying...');
+        bot.say('Nickserv', 'identify ' + config.password);
+    }
+}
+
+function _joined(bot, channel, message) {
     console.log('Joined ' + channel);
 }
 
