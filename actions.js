@@ -21,6 +21,7 @@ module.exports = {
     '_nick': _nick,
     '_join': _join,
     '_part': _part,
+    '_quit': _quit,
     '_kick': _kick
 };
 
@@ -670,7 +671,7 @@ function no_command(bot, from, to, text, message) {
 function _msg(bot, from, to, text, message) {
     handle_notify(bot, from, to, text, message);
 
-    if(to !== bot.nick) {
+    if(to !== bot.nick && text[0] !== '-') {
         handle_last_seen(bot, from, to, text, message);
         writeToLog(to, '<' + from + '> ' + text);
     }
@@ -711,6 +712,10 @@ function _join(bot, channel, nick, message) {
     handle_notify(bot, nick, channel, '[joined ' + channel + ']', message);
     handle_last_seen(bot, nick, channel, '[joined ' + channel + ']', message);
     writeToLog(channel, '*** ' + nick + ' (' + message.nick + '!' + message.user + '@' + message.host + ') has joined ' + channel);
+}
+
+function _quit(bot, channel, nick, reason, message) {
+    _part(bot, channel, nick, reason, message);
 }
 
 function _part(bot, channel, nick, reason, message) {
