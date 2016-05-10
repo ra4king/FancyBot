@@ -626,39 +626,66 @@ function no_command(bot, from, to, text, message) {
 
                 var protocol = parsed_url.protocol === 'https:' ? require('https') : require('http');
 
-                protocol.get(parsed_url, function(response) {
-                    if(response.statusCode == 200) {
-                        var data = '';
-                        response.on('data', function(chunk) {
-                            data += chunk.toString();
-                        });
-                        response.on('end', function() {
-                            var title_regex = /<\s*title.*?>([\s\S]+?)</mi;
-                            var title = title_regex.exec(data);
+                parsed_url.method = 'HEAD';
 
-                            if(title && title[1]) {
-                                title[1] = title[1].replace(/\r|\n/g, ' ');
+                var req = protocol.request(parsed_url, function(head_response) {
+                    if(head_response.statusCode == 200) {
+                        var content_type = head_response.headers['Content-Type'] || head_response.headers['content-type'];
+                        if(!content_type || content_type.indexOf('text/html') === -1) {
+                            console.log('Content not HTML for ' + url);
+                            return;
+                        }
 
-                                console.log('URL Title: ' + title[1]);
-                                bot.say(to === bot.nick ? from : to, title[1] + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
-                            } else {
-                                console.log('No title found.');
+                        parsed_url.method = undefined;
+                        var req = protocol.get(parsed_url, function(response) {
+                            var data = '';
+                            var found = false;
+
+                            function test_title() {
+                                var title_regex = /<\s*title.*?>([\s\S]+?)</mi;
+                                var title = title_regex.exec(data);
+
+                                if(title && title[1]) {
+                                    title[1] = title[1].replace(/\r|\n/g, ' ');
+
+                                    console.log('URL Title: ' + title[1]);
+                                    bot.say(to === bot.nick ? from : to, title[1] + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
+
+                                    found = true;
+                                    req.abort();
+                                }
                             }
+
+                            response.on('data', function(chunk) {
+                                data += chunk.toString();
+                                if(!found)
+                                    test_title();
+                            });
+                            response.on('end', function() {
+                                if(!found)
+                                    test_title();
+                            });
                         });
-                    } else if(Math.floor(response.statusCode / 100) == 3) {
-                        console.log('Got redirect (' + response.statusCode + ') for ' + url);
+                        req.on('error', function(err) {
+                            console.log('Could not reach ' + url + ': ' + err.message);
+                        });
+                        req.end();
+                    } else if(Math.floor(head_response.statusCode / 100) == 3) {
+                        console.log('Got redirect (' + head_response.statusCode + ') for ' + url);
                         var r = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/;
-                        if(response.headers.location && r.test(response.headers.location)) {
-                            get_title(response.headers.location);
+                        if(head_response.headers.location && r.test(head_response.headers.location)) {
+                            get_title(head_response.headers.location);
                         } else {
-                            console.log('Did not receive valid redirect for ' + url + ': ' + response.headers.location);
+                            console.log('Did not receive valid redirect for ' + url + ': ' + head_response.headers.location);
                         }
                     } else {
-                        console.log('Got status ' + response.statusCode + ' for ' + url);
+                        console.log('Got status ' + head_response.statusCode + ' for ' + url);
                     }
-                }).on('error', function(err) {
+                });
+                req.on('error', function(err) {
                     console.log('Could not reach ' + url + ': ' + err.message);
                 });
+                req.end();
             } catch(e) {
                 console.log('Could not parse ' + url);
             }
