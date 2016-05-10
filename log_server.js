@@ -19,15 +19,17 @@ function log_request(request, response) {
     var filename = 'logs/#java-gaming.' + date_string + '.log';
 
     fs.readFile(filename, function(err, data) {
-        response.setHeader('Content-Type', 'text/html; charset=utf-8');
+        response.setHeader('Access-Control-Allow-Origin', '*');
 
         try {
             var lines = err ? null : data.toString().split('\n');
 
             var body;
             if(param.query && param.query.type === 'json') {
+                response.setHeader('Content-Type', 'application/json; charset=utf-8');
                 body = generateJSON(date_string, lines, response);
             } else {
+                response.setHeader('Content-Type', 'text/html; charset=utf-8');
                 body = generateHTML(date_string, lines, response);
             }
 
@@ -57,16 +59,20 @@ function generateHTML(date_string, lines) {
     var next_date = dateToString(d);
 
     var prev_date_html = '<a id="prev_date" href="?date=' + prev_date + '">' + htmlencode.htmlEncode('<-- ' + prev_date) + '</a>';
+    var today_html = '<a id="today" href="?">' + dateToString(new Date()) + '</a>';
     var next_date_html = '<a id="next_date" href="?date=' + next_date + '">' + htmlencode.htmlEncode(next_date + ' -->') + '</a>';
-    var prev_next_date_html = '     <div>' + prev_date_html + next_date_html + '</div><br/>\n';
+    var prev_next_date_html = '     <div>' + prev_date_html + today_html + next_date_html + '</div>\n';
 
     var html = '';
     html += '<html>\n';
     html += '   <head>\n';
     html += '       <title>#java-gaming logs ' + title + '</title>\n';
-    html += '       <style> body { line-height: 1.3em; background-color: #0C1010; color: #008000; font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace; }\n';
-    html += '               a { color: #68A4DE; text-decoration: none; } a:hover { text-decoration: underline; } #prev_date { float: left; } #next_date { float: right; }\n'
-    html += '               .msg { color: #FFFFFF; } .event { color: #BDB76B; } .nick { color: #DC143C; display: inline-block; text-align: right; min-width: 140px; max-width: 140px; padding-right: 10px; }</style>\n';
+    html += '       <style>\n';
+    html += '           body { line-height: 1.3em; background-color: #0C1010; color: #008000; font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace; }\n';
+    html += '           a { color: #68A4DE; text-decoration: none; } a:hover { text-decoration: underline; } #today { width: 33%; display: inline-block; margin: auto; text-align: center; }\n';
+    html += '           #prev_date { width: 33%; display: inline-block; float: left; text-align: left; } #next_date { width: 33%; display: inline-block; float: right; text-align: right; }\n'
+    html += '           .msg { color: #FFFFFF; } .event { color: #BDB76B; } .nick { color: #DC143C; display: inline-block; text-align: right; min-width: 140px; max-width: 140px; padding-right: 10px; }\n';
+    html += '       </style>\n';
     html += '   </head>\n';
     html += '   <body>\n';
     html += '       <h1>#java-gaming logs ' + title + '</h1>\n';
@@ -78,7 +84,7 @@ function generateHTML(date_string, lines) {
         html += '       <hr />\n';
 
         lines.forEach(function(s) {
-            var msg_regex = /^(\[.+?\])  (<.+?> )?(.+)$/;
+            var msg_regex = /^(\[.+?\])  (<.+?> |\* )?(.+)$/;
             var match = msg_regex.exec(s);
             if(!match) {
                 return;

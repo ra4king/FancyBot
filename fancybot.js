@@ -42,7 +42,6 @@ bot.on('part', function(channel, nick, reason, message) {
 });
 
 bot.on('quit', function(nick, reason, channels, message) {
-    console.log('User ' + nick + ' has quit from: ' + channels);
     actions['_quit'](bot, bot.channel, nick, reason, message);
 });
 
