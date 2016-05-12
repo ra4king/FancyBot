@@ -519,7 +519,7 @@ function money(bot, from, to, text, message) {
     }
 }
 
-var blacklist = op_only_action(true, function(bot, from, to, text, message) {
+var blacklist = op_only_action(false, function(bot, from, to, text, message) {
     var parts = text.split(' ');
     if(parts[0].toLowerCase() === 'list') {
         if(parts.length > 1) {
@@ -534,6 +534,7 @@ var blacklist = op_only_action(true, function(bot, from, to, text, message) {
             });
             s = s.substring(0, s.length - 3);
         }
+        
         sayDirect(bot, from, to, s);
     } else if(parts[0].toLowerCase() === 'add') {
         var url_regex = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/g;
@@ -754,7 +755,7 @@ function sayDirect(bot, from, to, message) {
 
 function op_only_action(allow_pm, func) {
     return function(bot, from, to, text, message) {
-        if((to === bot.nick && !allow_pm) || (bot.chans[to] && bot.chans[to].users[from] !== '@')) {
+        if((to === bot.nick && !allow_pm && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@') || (bot.chans[to] && bot.chans[to].users[from] !== '@')) {
             sayDirect(bot, from, to, 'Only ops may use this command.');
             return;
         }
