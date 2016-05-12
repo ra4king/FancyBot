@@ -1,30 +1,3 @@
-module.exports = {
-    'help': help,
-    'ping': ping,
-    'notify': notify,
-    'tell': notify,
-    'calc': calc,
-    'exec': exec,
-    'blacklist': blacklist,
-    'lastseen': last_seen,
-    'convert': convert,
-    'money': money,
-    'eightball': eightball,
-    '8ball': eightball,
-    '_': no_command,
-    '_init': _init,
-    '_joined': _joined,
-    '_msg': _msg,
-    '_self': _self,
-    '_action': _action,
-    '_mode': _mode,
-    '_nick': _nick,
-    '_join': _join,
-    '_part': _part,
-    '_quit': _quit,
-    '_kick': _kick
-};
-
 var fs = require('fs');
 
 var config;
@@ -162,12 +135,7 @@ function calc(bot, from, to, text, message) {
     exec(bot, from, to, text, message, true);
 }
 
-function exec(bot, from, to, text, message, is_calc) {
-    // if(!is_calc && to !== bot.nick && bot.chans[to].users[from] !== '@') {
-    //     sayDirect(bot, from, to, 'Only ops may use this command.');
-    //     return;
-    // }
-
+var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) {
     if(!text) {
         if(is_calc) {
             sayDirect(bot, from, to, 'Usage: !calc 4 + 5');
@@ -212,7 +180,7 @@ function exec(bot, from, to, text, message, is_calc) {
     } catch(e) {
         sayDirect(bot, from, to, 'Error: ' + e.message);
     }
-}
+});
 
 var units;
 var units_regex;
@@ -551,17 +519,7 @@ function money(bot, from, to, text, message) {
     }
 }
 
-function blacklist(bot, from, to, text, message) {
-    if(to === bot.nick || !bot.chans[to] || bot.chans[to].users[from] !== '@') {
-        sayDirect(bot, from, to, 'Only ops may use this command.');
-        return;
-    }
-
-    if(!text) {
-        sayDirect(bot, from, to, 'Usage: !blacklist command [args]; command = ADD a.domain.com | LIST ');
-        return;
-    }
-
+var blacklist = op_only_action(true, function(bot, from, to, text, message) {
     var parts = text.split(' ');
     if(parts[0].toLowerCase() === 'list') {
         if(parts.length > 1) {
@@ -603,7 +561,7 @@ function blacklist(bot, from, to, text, message) {
     } else {
         sayDirect(bot, from, to, 'Usage: !blacklist command [args]; command = ADD a.domain.com | LIST ');
     }
-}
+});
 
 function eightball(bot, from, to, text, message) {
     var options = ['It is certain', 'It is decidedly so', 'Without a doubt', 'Yes, definitely', 'You may rely on it',
@@ -794,6 +752,17 @@ function sayDirect(bot, from, to, message) {
     }
 }
 
+function op_only_action(allow_pm, func) {
+    return function(bot, from, to, text, message) {
+        if((to === bot.nick && !allow_pm) || (bot.chans[to] && bot.chans[to].users[from] !== '@')) {
+            sayDirect(bot, from, to, 'Only ops may use this command.');
+            return;
+        }
+
+        func(bot, from, to, text, message);
+    }
+}
+
 var save_log_count = 0;
 var last_log_timeout = null;
 var log_buffer = [];
@@ -840,3 +809,30 @@ function writeToLog(channel, text) {
         }, 1000);
     }
 }
+
+module.exports = {
+    'help': help,
+    'ping': ping,
+    'notify': notify,
+    'tell': notify,
+    'calc': calc,
+    'exec': exec,
+    'blacklist': blacklist,
+    'lastseen': last_seen,
+    'convert': convert,
+    'money': money,
+    'eightball': eightball,
+    '8ball': eightball,
+    '_': no_command,
+    '_init': _init,
+    '_joined': _joined,
+    '_msg': _msg,
+    '_self': _self,
+    '_action': _action,
+    '_mode': _mode,
+    '_nick': _nick,
+    '_join': _join,
+    '_part': _part,
+    '_quit': _quit,
+    '_kick': _kick
+};
