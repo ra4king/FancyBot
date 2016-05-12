@@ -4,25 +4,29 @@ module.exports = {
 
 var htmlencode = require('htmlencode');
 
+var channel = '#java-gaming';
+
 function log_request(request, response) {
     var fs = require('fs');
 
     var param = require('url').parse(request.url, true);
 
-    var date_string;
+    var date_string = dateToString(new Date());
+    var queried_today;
     if(param.query && param.query.date) {
+        queried_today = date_string === param.query.date;
         date_string = param.query.date;
     } else {
-        date_string = dateToString(new Date());
+        queried_today = true;
     }
 
-    var filename = 'logs/#java-gaming.' + date_string + '.log';
+    var filename = 'logs/' + channel + '.' + date_string + '.log';
 
     fs.readFile(filename, function(err, data) {
         response.setHeader('Access-Control-Allow-Origin', '*');
 
         try {
-            var lines = err ? null : data.toString().split('\n');
+            var lines = err ? (queried_today ? [] : null) : data.toString().split('\n');
 
             var body;
             if(param.query && param.query.type === 'json') {
@@ -66,7 +70,7 @@ function generateHTML(date_string, lines) {
     var html = '';
     html += '<html>\n';
     html += '   <head>\n';
-    html += '       <title>#java-gaming logs ' + title + '</title>\n';
+    html += '       <title>' + channel + ' logs ' + title + '</title>\n';
     html += '       <style>\n';
     html += '           body { line-height: 1.3em; background-color: #0C1010; color: #008000; font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace; }\n';
     html += '           a { color: #68A4DE; text-decoration: none; } a:hover { text-decoration: underline; } #today { width: 33%; display: inline-block; margin: auto; text-align: center; }\n';
@@ -75,7 +79,7 @@ function generateHTML(date_string, lines) {
     html += '       </style>\n';
     html += '   </head>\n';
     html += '   <body>\n';
-    html += '       <h1>#java-gaming logs ' + title + '</h1>\n';
+    html += '       <h1>' + channel + ' logs ' + title + '</h1>\n';
     html += '       <form method="get">\n';
     html += '           <div id="datepicker">Date: <input type="date" name="date"/> <input type="submit" value="Go" id="datego"></div>\n';
     html += '       </form>\n';

@@ -5,7 +5,7 @@ module.exports = {
     'tell': notify,
     'calc': calc,
     'exec': exec,
-    'notitle': no_title,
+    'blacklist': blacklist,
     'lastseen': last_seen,
     'convert': convert,
     'money': money,
@@ -551,37 +551,58 @@ function money(bot, from, to, text, message) {
     }
 }
 
-function no_title(bot, from, to, text, message) {
+function blacklist(bot, from, to, text, message) {
     if(to === bot.nick || !bot.chans[to] || bot.chans[to].users[from] !== '@') {
         sayDirect(bot, from, to, 'Only ops may use this command.');
         return;
     }
 
     if(!text) {
-        sayDirect(bot, from, to, 'Usage: !notitle a.domain.com');
+        sayDirect(bot, from, to, 'Usage: !blacklist command [args]; command = ADD a.domain.com | LIST ');
         return;
     }
 
-    var url_regex = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/g;
-    var result = url_regex.exec(text);
-    if(!result) {
-        sayDirect(bot, from, to, 'Not a URL');
-        return;
-    }
+    var parts = text.split(' ');
+    if(parts[0].toLowerCase() === 'list') {
+        if(parts.length > 1) {
+            sayDirect(bot, from, to, 'Usage: !blacklist list');
+            return;
+        }
 
-    var url = result[0];
-    if(result[1] === undefined) {
-        url = 'http://' + url;
-    }
-    var parsed_url = require('url').parse(url);
+        var s = '';
+        if(config.url_blacklist) {
+            config.url_blacklist.forEach(function(b) {
+                s += b + ' - ';
+            });
+            s = s.substring(0, s.length - 3);
+        }
+        sayDirect(bot, from, to, s);
+    } else if(parts[0].toLowerCase() === 'add') {
+        var url_regex = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/g;
+        for(var i = 1; i < parts.length; i++) {
+            var result = url_regex.exec(parts[i]);
+            if(!result) {
+                sayDirect(bot, from, to, 'Not a URL');
+                return;
+            }
 
-    if(config.url_blacklist) {
-        config.url_blacklist.push(parsed_url.hostname.toLowerCase());
+            var url = result[0];
+            if(result[1] === undefined) {
+                url = 'http://' + url;
+            }
+            var parsed_url = require('url').parse(url);
+
+            if(config.url_blacklist) {
+                config.url_blacklist.push(parsed_url.hostname.toLowerCase());
+            } else {
+                config.url_blacklist = [parsed_url.hostname.toLowerCase()];
+            }
+        }
+
+        sayDirect(bot, from, to, 'Ok');
     } else {
-        config.url_blacklist = [parsed_url.hostname.toLowerCase()];
+        sayDirect(bot, from, to, 'Usage: !blacklist command [args]; command = ADD a.domain.com | LIST ');
     }
-
-    sayDirect(bot, from, to, 'Ok');
 }
 
 function eightball(bot, from, to, text, message) {
@@ -595,6 +616,8 @@ function eightball(bot, from, to, text, message) {
 }
 
 function no_command(bot, from, to, text, message) {
+    var off_log = text[0] === '-' ? '- ' : '';
+
     var url_regex = /(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
 
     var result;
@@ -605,6 +628,12 @@ function no_command(bot, from, to, text, message) {
 
         if(result[1] === undefined) {
             url_result = 'http://' + url_result;
+        }
+
+        var tldjs = require('tldjs');
+        if(!tldjs.tldExists(url_result) || !tldjs.isValid(url_result)) {
+            console.log('Not a valid URL or TLD');
+            continue;
         }
 
         function get_title(url) {
@@ -649,7 +678,7 @@ function no_command(bot, from, to, text, message) {
                                     title[1] = title[1].replace(/\r|\n/g, ' ');
 
                                     console.log('URL Title: ' + title[1]);
-                                    bot.say(to === bot.nick ? from : to, title[1] + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
+                                    bot.say(to === bot.nick ? from : to, off_log + title[1].trim() + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
 
                                     found = true;
                                     req.abort();
