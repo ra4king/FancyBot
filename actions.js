@@ -110,8 +110,9 @@ function notify(bot, from, to, text, message) {
         return;
     }
 
+    var notify_nick = text.substring(0, idx).trim();
     var notify = {
-        nick: text.substring(0, idx).trim(),
+        nick: from,
         msg: text.substring(idx + 1).trim(),
         pm: to === bot.nick
     };
@@ -120,10 +121,10 @@ function notify(bot, from, to, text, message) {
         config.notify_messages = {};
     }
 
-    if(config.notify_messages[notify.nick]) {
-        config.notify_messages[notify.nick].push(notify);
+    if(config.notify_messages[notify_nick]) {
+        config.notify_messages[notify_nick].push(notify);
     } else {
-        config.notify_messages[notify.nick] = [notify];
+        config.notify_messages[notify_nick] = [notify];
     }
 
     save_config();
