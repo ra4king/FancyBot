@@ -33,17 +33,22 @@ function save_config() {
 }
 
 function handle_notify(bot, from, to, text, message) {
-    if(config.notify_messages && config.notify_messages[from]) {
-        config.notify_messages[from].forEach(function(val) {
+    var nick = from.toLowerCase();
+    if(config.notify_messages && config.notify_messages[nick]) {
+        config.notify_messages[nick].forEach(function(val) {
+            var ago = val.timestamp ? time_diff(val.timestamp) : '';
+            ago = ago ? ago + ' ago' : ' just now';
+            var msg = val.nick + ago + ' said: ' + val.msg;
+
             if(val.pm) {
-                bot.say(from, val.nick + ' says: ' + val.msg);
+                bot.say(from, msg);
             }
             else {
-                sayDirect(bot, from, to, val.nick + ' says: ' + val.msg);
+                sayDirect(bot, from, to, msg);
             }
         });
 
-        delete config.notify_messages[from];
+        delete config.notify_messages[nick];
     }
 }
 
@@ -58,6 +63,20 @@ function handle_last_seen(bot, from, to, text, message) {
     }
 }
 
+function time_diff(time) {
+    var d = Date.now() - time;
+    var s = '';
+    [[1000,60,'second'], [60,60,'minute'], [60,24,'hour'], [24,365,'day'], [365,0,'year']].forEach(function(func, idx) {
+         d = Math.floor(d / func[0]);
+         var r = func[1] == 0 ? d : d % func[1];
+
+        if(r > 0) {
+            s = ' ' + r + ' ' + func[2] + (r > 1 ? 's' : '') + s;
+        }
+    });
+    return s;
+}
+
 function last_seen(bot, from, to, text, message) {
     if(!text) {
         sayDirect(bot, from, to, 'Usage: !lastseen nick');
@@ -68,16 +87,7 @@ function last_seen(bot, from, to, text, message) {
         var last_time = config.last_seen[text][0];
         var last_msg = config.last_seen[text][1];
 
-        var d = Date.now() - last_time;
-        var s = '';
-        [[1000,60,'second'], [60,60,'minute'], [60,24,'hour'], [24,365,'day'], [365,0,'year']].forEach(function(func, idx) {
-             d = Math.floor(d / func[0]);
-             var r = func[1] == 0 ? d : d % func[1];
-
-            if(r > 0) {
-                s = ' ' + r + ' ' + func[2] + (r > 1 ? 's' : '') + s;
-            }
-        });
+        var s = time_diff(last_time);
 
         if(s) {
             sayDirect(bot, from, to, text + ' last seen' + s + ' ago: ' + last_msg);
@@ -110,8 +120,9 @@ function notify(bot, from, to, text, message) {
         return;
     }
 
-    var notify_nick = text.substring(0, idx).trim();
+    var notify_nick = text.substring(0, idx).trim().toLowerCase();
     var notify = {
+        timestamp: Date.now(),
         nick: from,
         msg: text.substring(idx + 1).trim(),
         pm: to === bot.nick
