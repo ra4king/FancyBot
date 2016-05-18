@@ -1,0 +1,68 @@
+body {
+	line-height: 1.3em;
+	background: #0C1010;
+	color: #008000;
+	font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace;
+}
+
+a {
+	color: #68A4DE;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+#today {
+	width: 33%;
+	display: inline-block;
+	margin: auto;
+	text-align: center;
+}
+
+#prev_date {
+	width: 33%;
+	display: inline-block;
+	float: left;
+	text-align: left;
+}
+
+#next_date { width: 33%;
+	display: inline-block;
+	float: right;
+	text-align: right;
+}
+
+.row:nth-child(odd) {
+	background: #0F1215;
+}
+
+.datestring {
+	vertical-align: top;
+	display: inline-block;
+	max-width: 20%;
+}
+
+.nick {
+	color: #DC143C;
+	display: inline-block;
+	text-align: right;
+	vertical-align: top;
+	min-width: 10%;
+	max-width: 10%;
+	padding-right: 10px;
+}
+
+.msg {
+	display: inline-block;
+	vertical-align: top;
+	color: #FFFFFF;
+	max-width: 70%;
+}
+
+.event {
+	display: inline-block;
+	color: #BDB76B;
+	max-width: 80%;
+}

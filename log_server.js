@@ -4,6 +4,7 @@ module.exports = {
 
 var htmlencode = require('htmlencode');
 
+var path = '/jgo-logs';
 var channel = '#java-gaming';
 
 function log_request(request, response) {
@@ -11,39 +12,50 @@ function log_request(request, response) {
 
     var param = require('url').parse(request.url, true);
 
-    var date_string = dateToString(new Date());
-    var queried_today;
-    if(param.query && param.query.date) {
-        queried_today = date_string === param.query.date;
-        date_string = param.query.date;
-    } else {
-        queried_today = true;
-    }
-
-    var filename = 'logs/' + channel + '.' + date_string + '.log';
-
-    fs.readFile(filename, function(err, data) {
-        response.setHeader('Access-Control-Allow-Origin', '*');
-
-        try {
-            var lines = err ? (queried_today ? [] : null) : data.toString().split('\n');
-
-            var body;
-            if(param.query && param.query.type === 'json') {
-                response.setHeader('Content-Type', 'application/json; charset=utf-8');
-                body = generateJSON(date_string, lines, response);
+    var request_file = param.pathname.substring(path.length).replace(/\//g, '').trim();
+    if(request_file) {
+        fs.readFile(request_file, function(err, data) {
+            if(err) {
+                response.writeHead(404);
+                response.end('File not found.');
             } else {
-                response.setHeader('Content-Type', 'text/html; charset=utf-8');
-                body = generateHTML(date_string, lines, response);
+                response.writeHead(200);
+                response.end(data);
             }
-
-            response.writeHead(200);
-            response.end(body);
-        } catch(e) {
-            response.writeHead(500);
-            response.end('Internal error: ' + e);
+        });
+    } else {
+        var date_string = dateToString(new Date());
+        var queried_today;
+        if(param.query && param.query.date) {
+            queried_today = date_string === param.query.date;
+            date_string = param.query.date;
+        } else {
+            queried_today = true;
         }
-    });
+
+        var filename = 'logs/' + channel + '.' + date_string + '.log';
+
+        fs.readFile(filename, function(err, data) {
+            try {
+                var lines = err ? (queried_today ? [] : null) : data.toString().split('\n');
+
+                var body;
+                if(param.query && param.query.type === 'json') {
+                    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    body = generateJSON(date_string, lines, response);
+                } else {
+                    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+                    body = generateHTML(date_string, lines, response);
+                }
+
+                response.writeHead(200);
+                response.end(body);
+            } catch(e) {
+                response.writeHead(500);
+                response.end('Internal error: ' + e);
+            }
+        });
+    }
 }
 
 function dateToString(date) {
@@ -64,19 +76,14 @@ function generateHTML(date_string, lines) {
 
     var prev_date_html = '<a id="prev_date" href="?date=' + prev_date + '">' + htmlencode.htmlEncode('<-- ' + prev_date) + '</a>';
     var today_html = '<a id="today" href="?">' + dateToString(new Date()) + '</a>';
-    var next_date_html = '<a id="next_date" href="?date=' + next_date + '">' + htmlencode.htmlEncode(next_date + ' -->') + '</a>';
+    var next_date_html = Date.parse(next_date) - Date.now() > 0 ? '<div id="next_date"></div>' : '<a id="next_date" href="?date=' + next_date + '">' + htmlencode.htmlEncode(next_date + ' -->') + '</a>';
     var prev_next_date_html = '     <div>' + prev_date_html + today_html + next_date_html + '</div>\n';
 
     var html = '';
     html += '<html>\n';
     html += '   <head>\n';
     html += '       <title>' + channel + ' logs ' + title + '</title>\n';
-    html += '       <style>\n';
-    html += '           body { line-height: 1.3em; background-color: #0C1010; color: #008000; font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace; }\n';
-    html += '           a { color: #68A4DE; text-decoration: none; } a:hover { text-decoration: underline; } #today { width: 33%; display: inline-block; margin: auto; text-align: center; }\n';
-    html += '           #prev_date { width: 33%; display: inline-block; float: left; text-align: left; } #next_date { width: 33%; display: inline-block; float: right; text-align: right; }\n'
-    html += '           .msg { color: #FFFFFF; } .event { color: #BDB76B; } .nick { color: #DC143C; display: inline-block; text-align: right; min-width: 140px; max-width: 140px; padding-right: 10px; }\n';
-    html += '       </style>\n';
+    html += '       <link rel="stylesheet" href="/jgo-logs/log_viewer.css" />\n';
     html += '   </head>\n';
     html += '   <body>\n';
     html += '       <h1>' + channel + ' logs ' + title + '</h1>\n';
@@ -94,7 +101,7 @@ function generateHTML(date_string, lines) {
                 return;
             }
 
-            html += '       <div><span class="datestring">' + htmlencode.htmlEncode(match[1]) + '</span>  ';
+            html += '       <div class="row"><span class="datestring">' + htmlencode.htmlEncode(match[1]) + '</span>  ';
 
             var msg_class = 'msg';
 
@@ -104,8 +111,11 @@ function generateHTML(date_string, lines) {
                 msg_class = 'event';
             }
 
-            var url_regex = /(https?\:\/\/)(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
+            var url_regex = /(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
+
             var msg = match[3];
+
+            var tldjs = require('tldjs');
 
             var line = '';
             var result;
@@ -114,8 +124,15 @@ function generateHTML(date_string, lines) {
                     line += htmlencode.htmlEncode(msg.substring(0, result.index));
                 }
 
-                line += '<a href="' + result[0] + '">' + htmlencode.htmlEncode(result[0]) + '</a>';
-                msg = msg.substring(result.index + result[0].length);
+                var url_result = result[0];
+
+                if(!tldjs.tldExists(url_result) || !tldjs.isValid(url_result)) {
+                    line += htmlencode.htmlEncode(url_result);
+                } else {
+                    line += '<a target="_blank" href="' + (result[1] ? '' : 'http://') + url_result + '">' + htmlencode.htmlEncode(url_result) + '</a>';
+                }
+
+                msg = msg.substring(result.index + url_result.length);
             }
 
             if(msg.length > 0) {
