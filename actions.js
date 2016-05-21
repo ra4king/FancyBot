@@ -121,6 +121,12 @@ function notify(bot, from, to, text, message) {
     }
 
     var notify_nick = text.substring(0, idx).trim().toLowerCase();
+
+    if(notify_nick == bot.nick.toLowerCase()) {
+        sayDirect(bot, from, to, 'wat??');
+        return;
+    }
+
     var notify = {
         timestamp: Date.now(),
         nick: from,
@@ -143,9 +149,7 @@ function notify(bot, from, to, text, message) {
     sayDirect(bot, from, to, 'Ok');
 }
 
-function calc(bot, from, to, text, message) {
-    exec(bot, from, to, text, message, true);
-}
+var exec_context = {}
 
 var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) {
     if(!text) {
@@ -158,29 +162,30 @@ var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) 
     }
 
     if(is_calc) {
+        console.log('calc: print(' + text + ')');
+
         if(text.indexOf(';') != -1) {
+            console.log('Detected semicolon.');
+            sayDirect(bot, from, to, 'No statements allowed.');
             return;
         }
 
         text = 'print(' + text + ')';
+    } else {
+        console.log('exec: ' + text);
     }
-
-    console.log('exec: ' + text);
 
     try {
         var output = '';
-        var context = {
-            'print': function(text) {
-                output += text + ' ';
-            },
-            'Promise': undefined
+        exec_context.print = function(text) {
+            output += text + ' ';
         };
-
-        context.print.toString = function() {
+        exec_context.print.toString = function() {
             throw new Error('cannot print a function');
-        }
+        };
+        exec_context.Promise = undefined;
 
-        require('vm').runInNewContext(text, context, { 'timeout': 1000 });
+        require('vm').runInNewContext(text, exec_context, { 'timeout': 1000 });
 
         if(output.length > 255) {
             sayDirect(bot, from, to, 'Too much output');
@@ -193,6 +198,10 @@ var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) 
         sayDirect(bot, from, to, 'Error: ' + e.message);
     }
 });
+
+function calc(bot, from, to, text, message) {
+    exec(bot, from, to, text, message, true);
+}
 
 var units;
 var units_regex;
@@ -446,6 +455,7 @@ function convert(bot, from, to, text, message, notify_fail) {
         converted = apply(converted, factor, false);
     }
 
+    exec_context['_'] = converted;
     sayDirect(bot, from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
 }
 
@@ -648,8 +658,10 @@ function no_command(bot, from, to, text, message) {
                                 if(title && title[1]) {
                                     title[1] = title[1].replace(/\r|\n/g, ' ');
 
+                                    var htmlencode = require('htmlencode');
+
                                     console.log('URL Title: ' + title[1]);
-                                    bot.say(to === bot.nick ? from : to, off_log + title[1].trim() + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
+                                    bot.say(to === bot.nick ? from : to, off_log + htmlencode.htmlDecode(title[1].trim()) + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
 
                                     found = true;
                                     req.abort();
@@ -772,7 +784,7 @@ function op_only_action(allow_pm, func) {
             return;
         }
 
-        func(bot, from, to, text, message);
+        func.apply(this, arguments);
     }
 }
 
@@ -829,6 +841,7 @@ module.exports = {
     'notify': notify,
     'tell': notify,
     'calc': calc,
+    'eval': calc,
     'exec': exec,
     'blacklist': blacklist,
     'lastseen': last_seen,
