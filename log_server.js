@@ -14,15 +14,20 @@ function log_request(request, response) {
 
     var request_file = param.pathname.substring(path.length).replace(/\//g, '').trim();
     if(request_file) {
-        fs.readFile(request_file, function(err, data) {
-            if(err) {
-                response.writeHead(404);
-                response.end('File not found.');
-            } else {
-                response.writeHead(200);
-                response.end(data);
-            }
-        });
+        if(request_file.endsWith('.css')) {
+            fs.readFile(request_file, function(err, data) {
+                if(err) {
+                    response.writeHead(404);
+                    response.end('File not found.');
+                } else {
+                    response.writeHead(200);
+                    response.end(data);
+                }
+            });
+        } else {
+            response.writeHead(404);
+            response.end('File not found.');
+        }
     } else {
         var date_string = dateToString(new Date());
         var queried_today;

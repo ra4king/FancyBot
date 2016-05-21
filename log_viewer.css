@@ -41,6 +41,7 @@ a:hover {
 .datestring {
 	vertical-align: top;
 	display: inline-block;
+	min-width: 273px;
 	max-width: 20%;
 }
 
@@ -49,7 +50,7 @@ a:hover {
 	display: inline-block;
 	text-align: right;
 	vertical-align: top;
-	min-width: 10%;
+	min-width: 160px;
 	max-width: 10%;
 	padding-right: 10px;
 }
