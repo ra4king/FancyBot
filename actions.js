@@ -44,7 +44,7 @@ function handle_notify(bot, from, to, text, message) {
                 bot.say(from, msg);
             }
             else {
-                sayDirect(bot, from, to, msg);
+                bot.sayDirect(from, to, msg);
             }
         });
 
@@ -58,7 +58,11 @@ function handle_last_seen(bot, from, to, text, message) {
             config.last_seen = {};
         }
 
-        config.last_seen[from] = [Date.now(), text];
+        config.last_seen[from] = {
+            timestamp: Date.now(),
+            msg: text
+        };
+
         save_config();
     }
 }
@@ -79,51 +83,41 @@ function time_diff(time) {
 
 function last_seen(bot, from, to, text, message) {
     if(!text) {
-        sayDirect(bot, from, to, 'Usage: !lastseen nick');
+        bot.sayDirect(from, to, module.exports['lastseen'].help);
         return;
     }
 
     if(config.last_seen && config.last_seen[text]) {
-        var last_time = config.last_seen[text][0];
-        var last_msg = config.last_seen[text][1];
+        var last_time = config.last_seen[text].timestamp;
+        var last_msg = config.last_seen[text].msg;
 
         var s = time_diff(last_time);
 
         if(s) {
-            sayDirect(bot, from, to, text + ' last seen' + s + ' ago: ' + last_msg);
+            bot.sayDirect(from, to, text + ' last seen' + s + ' ago: ' + last_msg);
         } else {
-            sayDirect(bot, from, to, text + ' was just seen');
+            bot.sayDirect(from, to, text + ' was just seen');
         }
     } else {
-        sayDirect(bot, from, to, 'I have not seen ' + text);
+        bot.sayDirect(from, to, 'I have not seen ' + text);
     }
-}
-
-function help(bot, from, to, text, message) {
-    var commands = '';
-    for(c in module.exports) {
-        if(c[0] !== '_') {
-            commands += ' ' + c;
-        }
-    }
-    sayDirect(bot, from, to, 'Available commands:' + commands);
 }
 
 function ping(bot, from, to, text, message) {
-    sayDirect(bot, from, to, 'pong');
+    bot.sayDirect(from, to, 'pong');
 }
 
 function notify(bot, from, to, text, message) {
     var idx = text.indexOf(' ');
     if(!text || idx == -1) {
-        sayDirect(bot, from, to, 'Usage: !notify nick message');
+        bot.sayDirect(from, to, module.exports['notify'].help);
         return;
     }
 
     var notify_nick = text.substring(0, idx).trim().toLowerCase();
 
     if(notify_nick == bot.nick.toLowerCase()) {
-        sayDirect(bot, from, to, 'wat??');
+        bot.sayDirect(from, to, 'wat??');
         return;
     }
 
@@ -146,17 +140,20 @@ function notify(bot, from, to, text, message) {
 
     save_config();
 
-    sayDirect(bot, from, to, 'Ok');
+    bot.sayDirect(from, to, 'Ok');
+}
+
+function calc(bot, from, to, text, message) {
+    exec(bot, from, to, text, message, true);
 }
 
 var exec_context = {}
-
-var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) {
+function exec(bot, from, to, text, message, is_calc) {
     if(!text) {
         if(is_calc) {
-            sayDirect(bot, from, to, 'Usage: !calc 4 + 5');
+            bot.sayDirect(from, to, module.exports['calc'].help);
         } else {
-            sayDirect(bot, from, to, 'Usage: !exec print("Hello, world!")');
+            bot.sayDirect(from, to, module.exports['exec'].help);
         }
         return;
     }
@@ -166,7 +163,7 @@ var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) 
 
         if(text.indexOf(';') != -1) {
             console.log('Detected semicolon.');
-            sayDirect(bot, from, to, 'No statements allowed.');
+            bot.sayDirect(from, to, 'No statements allowed.');
             return;
         }
 
@@ -188,19 +185,15 @@ var exec = op_only_action(true, function(bot, from, to, text, message, is_calc) 
         require('vm').runInNewContext(text, exec_context, { 'timeout': 1000 });
 
         if(output.length > 255) {
-            sayDirect(bot, from, to, 'Too much output');
+            bot.sayDirect(from, to, 'Too much output');
         } else if(!output) {
-            sayDirect(bot, from, to, 'No output');
+            bot.sayDirect(from, to, 'No output');
         } else {
-            sayDirect(bot, from, to, output.replace(/\n/g, ' ').replace(/ +/, ' '));
+            bot.sayDirect(from, to, output.replace(/\n/g, ' ').replace(/ +/, ' '));
         }
     } catch(e) {
-        sayDirect(bot, from, to, 'Error: ' + e.message);
+        bot.sayDirect(from, to, 'Error: ' + e.message);
     }
-});
-
-function calc(bot, from, to, text, message) {
-    exec(bot, from, to, text, message, true);
 }
 
 var units;
@@ -354,14 +347,14 @@ function init_units() {
 
 function convert(bot, from, to, text, message, notify_fail) {
     if(!text) {
-        sayDirect(bot, from, to, 'Usage: !convert 45 feet to meters');
+        bot.sayDirect(from, to, module.exports['convert'].help);
         return;
     }
 
     var result = new RegExp(units_regex).exec(text.toLowerCase());
 
     if(!result) {
-        sayDirect(bot, from, to, 'Incorrect conversion request');
+        bot.sayDirect(from, to, 'Incorrect conversion request');
         return;
     }
 
@@ -415,7 +408,7 @@ function convert(bot, from, to, text, message, notify_fail) {
     // console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
 
     function unsupported() {
-        sayDirect(bot, from, to, 'Unsupported conversion');
+        bot.sayDirect(from, to, 'Unsupported conversion');
     }
 
     if(!foundAll()) {
@@ -456,19 +449,19 @@ function convert(bot, from, to, text, message, notify_fail) {
     }
 
     exec_context['_'] = converted;
-    sayDirect(bot, from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
+    bot.sayDirect(from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
 }
 
 function money(bot, from, to, text, message) {
     if(!text) {
-        sayDirect(bot, from, to, 'Usage: !money 1 USD to EUR');
+        bot.sayDirect(from, to, module.exports['money'].help);
         return;
     }
 
     var money_regex = /^(\d+(?:\.\d+)?) ?([A-Z]{3}) TO ([A-Z]{3})$/;
     var result = money_regex.exec(text.toUpperCase());
     if(!result) {
-        sayDirect(bot, from, to, 'Incorrect money conversion request');
+        bot.sayDirect(from, to, 'Incorrect money conversion request');
         return;
     }
 
@@ -479,7 +472,7 @@ function money(bot, from, to, text, message) {
     console.log(value + ' ' + fromCurr + ' to ' + toCurr);
 
     if(fromCurr === toCurr) {
-        sayDirect(bot, from, to, 'date = ' + new Date().toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + value + ' ' + toCurr);
+        bot.sayDirect(from, to, 'date = ' + new Date().toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + value + ' ' + toCurr);
     }
     else if(fromCurr === 'BTC' || toCurr === 'BTC') {
         var reversed = false;
@@ -505,14 +498,14 @@ function money(bot, from, to, text, message) {
 
                     converted = Math.round(converted * 100) / 100;
 
-                    sayDirect(bot, from, to, 'date = ' + new Date(json.timestamp).toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
+                    bot.sayDirect(from, to, 'date = ' + new Date(json.timestamp).toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
                 } catch(e) {
-                    sayDirect(bot, from, to, 'Unsupported conversion');
+                    bot.sayDirect(from, to, 'Unsupported conversion');
                     console.error(e.message + ' - ' + data);
                 }
             });
         }).on('error', function(err) {
-            sayDirect(bot, from, to, 'Error accessing bitcoinaverage API');
+            bot.sayDirect(from, to, 'Error accessing bitcoinaverage API');
         });
     } else {
         require('http').get('http://api.fixer.io/latest?base=' + fromCurr + '&symbols=' + toCurr, function(response) {
@@ -529,14 +522,14 @@ function money(bot, from, to, text, message) {
                     var converted = value * json.rates[toCurr];
                     converted = Math.round(converted * 100) / 100;
 
-                    sayDirect(bot, from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
+                    bot.sayDirect(from, to, 'date = ' + json.date + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
                 } catch(e) {
-                    sayDirect(bot, from, to, 'Unsupported conversion');
+                    bot.sayDirect(from, to, 'Unsupported conversion');
                     console.error(e.message + ' - ' + data);
                 }
             });
         }).on('error', function(err) {
-            sayDirect(bot, from, to, 'Error accessing fixer.io API');
+            bot.sayDirect(from, to, 'Error accessing fixer.io API');
         });
     }
 }
@@ -545,7 +538,7 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
     var parts = text.split(' ');
     if(parts[0].toLowerCase() === 'list') {
         if(parts.length > 1) {
-            sayDirect(bot, from, to, 'Usage: !blacklist list');
+            bot.sayDirect(from, to, 'Usage: !blacklist list');
             return;
         }
 
@@ -557,14 +550,19 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
             s = s.substring(0, s.length - 3);
         }
         
-        sayDirect(bot, from, to, s);
+        bot.sayDirect(from, to, s);
     } else if(parts[0].toLowerCase() === 'add') {
+        if(parts.length == 1) {
+            bot.sayDirect(from, to, 'Usage: !blacklist add mydomain.tld');
+            return;
+        }
+
         var url_regex = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/g;
         for(var i = 1; i < parts.length; i++) {
             var result = url_regex.exec(parts[i]);
             if(!result) {
-                sayDirect(bot, from, to, 'Not a URL');
-                return;
+                bot.sayDirect(from, to, 'Not a URL: ' + parts[i]);
+                continue;
             }
 
             var url = result[0];
@@ -580,9 +578,9 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
             }
         }
 
-        sayDirect(bot, from, to, 'Ok');
+        bot.sayDirect(from, to, 'Ok');
     } else {
-        sayDirect(bot, from, to, 'Usage: !blacklist command [args]; command = ADD a.domain.com | LIST ');
+        bot.sayDirect(from, to, module.exports['blacklist'].help);
     }
 });
 
@@ -593,7 +591,7 @@ function eightball(bot, from, to, text, message) {
                    'Don\'t count on it', 'My reply is no', 'My sources say no', 'Outlook not so good', 'Very doubtful'];
 
     var choice = Math.floor(Math.random() * options.length);
-    sayDirect(bot, from, to, options[choice]);
+    bot.sayDirect(from, to, options[choice]);
 }
 
 function no_command(bot, from, to, text, message) {
@@ -769,18 +767,10 @@ function _nick(bot, oldnick, newnick, channels, message) {
     writeToLog(channels[0], '*** ' + oldnick + ' is now known as ' + newnick);
 }
 
-function sayDirect(bot, from, to, message) {
-    if(to === bot.nick) {
-        bot.say(from, message);
-    } else {
-        bot.say(to, from + ': ' + message);
-    }
-}
-
 function op_only_action(allow_pm, func) {
     return function(bot, from, to, text, message) {
         if((to === bot.nick && !allow_pm && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@') || (bot.chans[to] && bot.chans[to].users[from] !== '@')) {
-            sayDirect(bot, from, to, 'Only ops may use this command.');
+            bot.sayDirect(from, to, 'Only ops may use this command.');
             return;
         }
 
@@ -836,19 +826,18 @@ function writeToLog(channel, text) {
 }
 
 module.exports = {
-    'help': help,
-    'ping': ping,
-    'notify': notify,
-    'tell': notify,
-    'calc': calc,
-    'eval': calc,
-    'exec': exec,
-    'blacklist': blacklist,
-    'lastseen': last_seen,
-    'convert': convert,
-    'money': money,
-    'eightball': eightball,
-    '8ball': eightball,
+    'ping': { func: ping, help: 'Replies with pong' },
+    'notify': { func: notify, help: 'Usage: !notify nick message. Will send the message when the specified nick is seen. Same as !tell' },
+    'tell': { func: notify, help: 'Usage: !tell nick message. Will send the message when the specified nick is seen. Same as !notify' },
+    'calc': { func: calc, help: 'Usage: !calc 4 + 5. Same as !eval. Evaluates and prints a javascript expression.' },
+    'eval': { func: calc, help: 'Usage: !eval 4 + 5. Same as !calc. Evaluates and prints a javascript expression.' },
+    'exec': { func: op_only_action(true, exec), help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
+    'blacklist': { func: blacklist, help: 'Usage: !blacklist list|add. Manage URL title-grabber blacklist.' },
+    'lastseen': { func: last_seen, help: 'Usage: !lastseen nick. Prints how long ago nick was seen.' },
+    'convert': { func: convert, help: 'Usage: !convert 45 feet to meters. Converts between different units.' },
+    'money': { func: money, help: 'Usage: !money 1 USD to EUR. Converts between different currencies.' },
+    'eightball': { func: eightball, help: 'Usage: !eightball Am I awesome?' },
+    '8ball': { func: eightball, help: 'Usage: !8ball Am I awesome?' },
     '_': no_command,
     '_init': _init,
     '_joined': _joined,

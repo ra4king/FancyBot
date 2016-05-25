@@ -10,7 +10,7 @@ console.log = function(text) {
     console_log(new Date().toUTCString() + ' - ' + text);
 }
 console.error = function(text) {
-    console_err(new Date().toUTCString() + ' - ' + text);
+    console_err(new Date().toUTCString() + ' - ERROR: ' +  + text);
 }
 
 var name = 'FancyBot';
@@ -23,6 +23,14 @@ var bot = new irc.Client('irc.freenode.net', name, {
     autoRejoin: true
 });
 bot.channel = chan;
+
+bot.sayDirect = function(from, to, message) {
+    if(to === bot.nick) {
+        bot.say(from, message);
+    } else {
+        bot.say(to, from + ': ' + message);
+    }
+}
 
 bot.on('registered', function(message) {
     console.log('Successfully joined freenode!');
@@ -67,15 +75,33 @@ bot.on('message', function(nick, to, text, message) {
                 try {
                     actions = reload('./actions');
                     log_server = reload('./log_server');
-                    bot.say(to === bot.nick ? nick : to, 'Successfully reloaded the actions and log server.');
+                    bot.sayDirect(nick, to, 'Successfully reloaded the actions and log server.');
                 } catch(e) {
-                    bot.say(to === bot.nick ? nick : to, 'Failed to reload the actions: and log server ' + e.message);
+                    bot.sayDirect(nick, to, 'Failed to reload the actions: and log server ' + e.message);
                 }
                 return;
             }
         }
-        else if(actions[command]) {
-            actions[command](bot, nick, to, index == -1 ? '' : text.substring(index).trim(), message);
+        else if(command === 'help') {
+            if(index != -1 && index < text.length) {
+                var help_command = text.substring(index + 1).trim();
+                if(help_command[0] != '_' && actions[help_command]) {
+                    bot.sayDirect(nick, to, actions[help_command].help);
+                } else {
+                    bot.sayDirect(nick, to, 'Command does not exist.');
+                }
+            } else {
+                var commands = '';
+                for(c in actions) {
+                    if(c[0] !== '_') {
+                        commands += ' ' + c;
+                    }
+                }
+                bot.sayDirect(nick, to, 'Available commands:' + commands);
+            }
+        }
+        else if(command[0] != '_' && actions[command]) {
+            actions[command].func(bot, nick, to, index == -1 ? '' : text.substring(index).trim(), message);
             return;
         }
     }
@@ -100,7 +126,7 @@ bot.on('-mode', function(channel, by, mode, argument, message) {
 });
 
 bot.on('error', function(message) {
-    console.error('ERROR: ' + require('util').inspect(message));
+    console.error(require('util').inspect(message));
 });
 
 process.on('exit', function() {
