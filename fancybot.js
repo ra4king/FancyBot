@@ -109,6 +109,10 @@ bot.on('message', function(nick, to, text, message) {
     actions['_'](bot, nick, to, text, message);
 });
 
+bot.on('notice', function(nick, to, text, message) {
+    actions['_notice'](bot, nick, to, text, message);
+});
+
 bot.on('selfMessage', function(to, text) {
     actions['_self'](bot, to, text);
 });

@@ -714,6 +714,12 @@ function _msg(bot, from, to, text, message) {
     }
 }
 
+function _notice(bot, nick, to, text, message) {
+    if(to === bot.nick) {
+        console.log('NOTICE: -' + (nick === null ? 'Server' : nick) + '- ' + text);
+    }
+}
+
 function _self(bot, to, text) {
     if(to === bot.channel) {
         writeToLog(to, '<' + bot.nick + '> ' + text);
@@ -737,7 +743,7 @@ function _mode(bot, channel, by, mode, argument, message) {
 function _init(bot, message) {
     if(config.password) {
         console.log('Identifying...');
-        bot.say('Nickserv', 'identify ' + config.password);
+        bot.say('NickServ', 'identify ' + config.password);
     }
 }
 
@@ -842,6 +848,7 @@ module.exports = {
     '_init': _init,
     '_joined': _joined,
     '_msg': _msg,
+    '_notice': _notice,
     '_self': _self,
     '_action': _action,
     '_mode': _mode,
