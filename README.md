@@ -5,7 +5,7 @@ My fancy IRC bot written in Javascript for NodeJS.
 
 Features so far:
 - **!help [command]**
-  - prints list of commands or help about particular optionally specificed command
+  - prints list of commands or help about particular optionally specified command
 - **!ping**
   - responds with pong
 - **!notify/tell nick message**
@@ -13,13 +13,13 @@ Features so far:
 - **!calc/eval expression**
   - executes the expression and prints the result
 - **!exec code**
-  - op-only feature: executes javascript code and prints the output
+  - *op-only feature:* executes javascript code and prints the output
 - **!blacklist list|add URL [URL...] |remove URL [URL...]**
-  - op-only feature: manages blacklist of title grabber
+  - *op-only feature:* manages blacklist of title grabber
 - **!lastseen nick**
-  - prints how long ago the user was seend and their last message
+  - prints how long ago the user was seen and their last message
 - **!convert value fromUnit to toUnit**
-  - converts the value from the fromUnit to toUnit
+  - converts between units
 - **!money amount fromCurr to toCurr**
   - converts between currencies
 - **!eightball/8ball question**
@@ -27,4 +27,4 @@ Features so far:
 - **!slap nick [message]**
   - slaps the specified nick with a predefined message or optionally specified message
 - **!slapmsg message**
-  - adds message as a predefined message for slap command
+  - *op-only feature:* adds message as a predefined message for slap command
