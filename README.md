@@ -4,27 +4,27 @@ FancyBot
 My fancy IRC bot written in Javascript for NodeJS.
 
 Features so far:
-- !help [command]
+- **!help [command]**
   - prints list of commands or help about particular optionally specificed command
-- !ping
+- **!ping**
   - responds with pong
-- !notify/tell nick message
+- **!notify/tell nick message**
   - notifies the user with message upon activity
-- !calc/eval expression
+- **!calc/eval expression**
   - executes the expression and prints the result
-- !exec code
+- **!exec code**
   - op-only feature: executes javascript code and prints the output
-- !blacklist list|add URL [URL...] |remove URL [URL...]
+- **!blacklist list|add URL [URL...] |remove URL [URL...]**
   - op-only feature: manages blacklist of title grabber
-- !lastseen nick
+- **!lastseen nick**
   - prints how long ago the user was seend and their last message
-- !convert value fromUnit to toUnit
+- **!convert value fromUnit to toUnit**
   - converts the value from the fromUnit to toUnit
-- !money amount fromCurr to toCurr
+- **!money amount fromCurr to toCurr**
   - converts between currencies
-- !eightball/8ball question
+- **!eightball/8ball question**
   - returns a magic response to a yes/no question
-- !slap nick [message]
+- **!slap nick [message]**
   - slaps the specified nick with a predefined message or optionally specified message
-- !slapmsg message
-  - adds message as a predefined message for !slap command
+- **!slapmsg message**
+  - adds message as a predefined message for slap command
