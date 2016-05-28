@@ -98,6 +98,8 @@ function last_seen(bot, from, to, text, message) {
         } else {
             bot.sayDirect(from, to, text + ' was just seen');
         }
+    } else if(text === bot.nick) {
+        bot.sayDirect(from, to, 'I have no mirrors with which to see myself :(');
     } else {
         bot.sayDirect(from, to, 'I have not seen ' + text);
     }
@@ -105,6 +107,45 @@ function last_seen(bot, from, to, text, message) {
 
 function ping(bot, from, to, text, message) {
     bot.sayDirect(from, to, 'pong');
+}
+
+function slap_msg(bot, from, to, text, message) {
+    text = text.trim();
+    if(!text) {
+        bot.sayDirect(from, to, module.exports['slapmsg'].help);
+        return;
+    }
+
+    config.slap_messages.push(text);
+    save_config();
+
+    bot.sayDirect(from, to, 'Ok.');
+}
+
+function slap(bot, from, to, text, message) {
+    if(!text) {
+        bot.sayDirect(from, to, module.exports['slap'].help);
+        return;
+    }
+
+    if(to === bot.nick) {
+        bot.sayDirect(from, to, 'Can\'t slap anyone in pm!');
+        return;
+    }
+
+    var idx = text.indexOf(' ');
+    var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
+    if(bot.chans[to].users[nick] === undefined) {
+        bot.sayDirect(from, to, nick + ' is not in this channel.');
+        return;
+    }
+
+    var message = idx == -1 ? undefined : text.substring(idx).trim();
+    if(!message) {
+        message = config.slap_messages[Math.floor(Math.random() * config.slap_messages.length)];
+    }
+
+    bot.action(to, 'slaps ' + nick + ' ' + message);
 }
 
 function notify(bot, from, to, text, message) {
@@ -557,28 +598,36 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
             return;
         }
 
-        var url_regex = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/g;
         for(var i = 1; i < parts.length; i++) {
-            var result = url_regex.exec(parts[i]);
-            if(!result) {
-                bot.sayDirect(from, to, 'Not a URL: ' + parts[i]);
-                continue;
-            }
-
-            var url = result[0];
-            if(result[1] === undefined) {
-                url = 'http://' + url;
-            }
-            var parsed_url = require('url').parse(url);
+            var url = parts[i];
 
             if(config.url_blacklist) {
-                config.url_blacklist.push(parsed_url.hostname.toLowerCase());
+                config.url_blacklist.push(url);
             } else {
-                config.url_blacklist = [parsed_url.hostname.toLowerCase()];
+                config.url_blacklist = [url];
             }
         }
 
+        save_config();
+
         bot.sayDirect(from, to, 'Ok');
+    } else if(parts[0].toLowerCase() === 'remove') {
+        if(parts.length == 1) {
+            bot.sayDirect(from, to, 'Usage: !blacklist remove mydomain.tld');
+            return;
+        }
+
+        for(var i = 1; i < parts.length; i++) {
+            var index;
+            if((index = config.url_blacklist.findIndex(function(value) {
+                return value === parts[i];
+            })) != -1) {
+                config.url_blacklist.splice(index, 1);
+                save_config();
+            }
+        }
+
+        bot.sayDirect(from, to, 'Ok.');
     } else {
         bot.sayDirect(from, to, module.exports['blacklist'].help);
     }
@@ -625,7 +674,14 @@ function no_command(bot, from, to, text, message) {
                     var lc_url = parsed_url.hostname.toLowerCase();
 
                     if(config.url_blacklist.findIndex(function(value) {
-                        return value === lc_url;
+                        if(value === lc_url) {
+                            return true;
+                        } else if(value.indexOf('*') != -1) {
+                            var regex = new RegExp('^' + value.replace(/[.?+^$[\]\\(){}|-]/g, "\\$&").replace(/[*]/g, '.*') + '$');
+                            return regex.test(lc_url);
+                        }
+
+                        return false;
                     }) != -1) {
                         console.log('Matched blacklist entry.');
                         return;
@@ -722,7 +778,11 @@ function _notice(bot, nick, to, text, message) {
 
 function _self(bot, to, text) {
     if(to === bot.channel) {
-        writeToLog(to, '<' + bot.nick + '> ' + text);
+        if(text.startsWith('\x01ACTION')) {
+            writeToLog(to, '* ' + bot.nick + text.substring(7, text.length - 1));
+        } else {
+            writeToLog(to, '<' + bot.nick + '> ' + text);
+        }
     }
 }
 
@@ -833,12 +893,14 @@ function writeToLog(channel, text) {
 
 module.exports = {
     'ping': { func: ping, help: 'Replies with pong' },
-    'notify': { func: notify, help: 'Usage: !notify nick message. Will send the message when the specified nick is seen. Same as !tell' },
-    'tell': { func: notify, help: 'Usage: !tell nick message. Will send the message when the specified nick is seen. Same as !notify' },
+    'notify': { func: notify, help: 'Usage: !notify nick message. Will send the message when the specified nick is seen. Same as !tell.' },
+    'tell': { func: notify, help: 'Usage: !tell nick message. Will send the message when the specified nick is seen. Same as !notify.' },
+    'slapmsg': { func: op_only_action(false, slap_msg), help: 'Usage: !slapmsg message. Adds a slap message to be used next time someone is slapped.' },
+    'slap': { func: slap, help: 'Usage: !slap nick [message]. Will slap the nick with a creative message or optionally provided message.' },
     'calc': { func: calc, help: 'Usage: !calc 4 + 5. Same as !eval. Evaluates and prints a javascript expression.' },
     'eval': { func: calc, help: 'Usage: !eval 4 + 5. Same as !calc. Evaluates and prints a javascript expression.' },
-    'exec': { func: op_only_action(true, exec), help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
-    'blacklist': { func: blacklist, help: 'Usage: !blacklist list|add. Manage URL title-grabber blacklist.' },
+    'exec': { func: op_only_action(false, exec), help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
+    'blacklist': { func: blacklist, help: 'Usage: !blacklist list|add|remove. Manage URL title-grabber blacklist.' },
     'lastseen': { func: last_seen, help: 'Usage: !lastseen nick. Prints how long ago nick was seen.' },
     'convert': { func: convert, help: 'Usage: !convert 45 feet to meters. Converts between different units.' },
     'money': { func: money, help: 'Usage: !money 1 USD to EUR. Converts between different currencies.' },
