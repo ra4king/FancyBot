@@ -67,20 +67,6 @@ function handle_last_seen(bot, from, to, text, message) {
     }
 }
 
-function time_diff(time) {
-    var d = Date.now() - time;
-    var s = '';
-    [[1000,60,'second'], [60,60,'minute'], [60,24,'hour'], [24,365,'day'], [365,0,'year']].forEach(function(func, idx) {
-         d = Math.floor(d / func[0]);
-         var r = func[1] == 0 ? d : d % func[1];
-
-        if(r > 0) {
-            s = ' ' + r + ' ' + func[2] + (r > 1 ? 's' : '') + s;
-        }
-    });
-    return s;
-}
-
 function last_seen(bot, from, to, text, message) {
     if(!text) {
         bot.sayDirect(from, to, module.exports['lastseen'].help);
@@ -142,7 +128,7 @@ function slap(bot, from, to, text, message) {
 
     var message = idx == -1 ? undefined : text.substring(idx).trim();
     if(!message) {
-        message = config.slap_messages[Math.floor(Math.random() * config.slap_messages.length)];
+        message = choose_random(config.slap_messages);
     }
 
     bot.action(to, 'slaps ' + nick + ' ' + message);
@@ -200,7 +186,7 @@ function exec(bot, from, to, text, message, is_calc) {
     }
 
     if(is_calc) {
-        console.log('calc: print(' + text + ')');
+        console.log('calc: ' + text);
 
         if(text.indexOf(';') != -1) {
             console.log('Detected semicolon.');
@@ -634,14 +620,134 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
 });
 
 function eightball(bot, from, to, text, message) {
+    if(!text) {
+        bot.sayDirect(from, to, module.exports['eightball'].help);
+        return;
+    }
+    
     var options = ['It is certain', 'It is decidedly so', 'Without a doubt', 'Yes, definitely', 'You may rely on it',
                    'As I see it, yes', 'Most likely', 'Outlook good', 'Yes', 'Signs point to yes', 'Reply hazy try again',
                    'Ask again later', 'Better not tell you now', 'Cannot predict now', 'Concentrate and ask again',
                    'Don\'t count on it', 'My reply is no', 'My sources say no', 'Outlook not so good', 'Very doubtful'];
 
-    var choice = Math.floor(Math.random() * options.length);
-    bot.sayDirect(from, to, options[choice]);
+    bot.sayDirect(from, to, choose_random(options));
 }
+
+var math_game_sessions = {};
+
+function math_game(bot, from, to, text, message) {
+    var answer = 0;
+
+    var val1 = Math.round(Math.random() * 1000);
+    var op1 = choose_random('+-*/');
+
+    var val2;
+    switch(op1) {
+        case '+':
+           val2 = Math.round(Math.random() * 500);
+           answer = val1 + val2;
+           break;
+        case '-':
+            do {
+                val2 = Math.round(Math.random() * 500);
+            } while(val2 > val1);
+            answer = val1 - val2;
+            break;
+        case '*':
+            val2 = Math.round(Math.random() * 100);
+            answer = val1 * val2;
+            break;
+        case '/':
+            val2 = Math.round(Math.random() * 100);
+            val1 = Math.round(Math.random() * 100) * val2;
+            answer = val1 / val2;
+            break;
+    }
+
+    var op2 = choose_random('+-');
+
+    var val3;
+    switch(op2) {
+        case '+':
+           val3 = Math.round(Math.random() * 500);
+           answer += val3;
+           break;
+        case '-':
+            do {
+                val3 = Math.round(Math.random() * 500);
+            } while(val3 > answer);
+            answer -= val3;
+            break;
+    }
+
+    math_game_sessions[from] = {
+        timestamp: Date.now(),
+        answer: answer,
+        tries: 3
+    };
+
+    bot.sayDirect(from, to, 'Solve: ' + val1 + ' ' + op1 + ' ' + val2 + ' ' + op2 + ' ' + val3);
+}
+
+function math_answer(bot, from, to, text, message) {
+    if(!text) {
+        bot.sayDirect(from, to, module.exports['mathanswer']);
+        return;
+    }
+
+    if(!math_game_sessions[from]) {
+        bot.sayDirect(from, to, 'No game started.');
+        return;
+    }
+
+    var num = Number(text);
+
+    if(Number.isNaN(num)) {
+        bot.sayDirect(from, to, 'Not a number!');
+        return;
+    }
+
+    if(num === math_game_sessions[from].answer) {
+        bot.sayDirect(from, to, 'Correct! You solved it in' + time_diff(math_game_sessions[from].timestamp));
+        delete math_game_sessions[from];
+    } else if(--math_game_sessions[from].tries == 0) {
+        bot.sayDirect(from, to, 'Incorrect! Out of tries, answer: ' + math_game_sessions[from].answer);
+        delete math_game_sessions[from];
+    } else {
+        bot.sayDirect(from, to, 'Incorrect! You have ' + math_game_sessions[from].tries + ' tries left');
+    }
+}
+
+// var current_votebans = {};
+
+// function voteban(bot, from, to, text, message) {
+//     if(!text) {
+//         bot.sayDirect(from, to, module.exports['voteban'].help);
+//         return;
+//     }
+
+//     if(to === bot.nick) {
+//         bot.sayDirect(from, to, 'Can\'t voteban anyone in pm!');
+//         return;
+//     }
+
+//     var nick = text.trim();
+//     if(bot.chans[to].users[nick] === undefined) {
+//         bot.sayDirect(from, to, nick + ' is not in this channel.');
+//         return;
+//     }
+
+//     if(!current_votebans[nick]) {
+//         bot.sayDirect(from, to, 'Voteban has started on ' + nick + '. 1 vote / 3 votes needed.');
+//         current_votebans[nick] = 1;
+//     } else if(++current_votebans[nick] == 3) {
+//         bot.sayDirect(from, to, 'Voteban successful!');
+//         bot.action(to, 'bans ' + nick + ' from ' + to + ' FOREVER!');
+//         delete current_votebans[nick];
+//     } else {
+//         bot.sayDirect(from, to, 'Voteban on ' + nick + ': ' + current_votebans[nick] + ' / 3 votes needed.');
+//     }
+// }
 
 function no_command(bot, from, to, text, message) {
     var off_log = text[0] === '-' ? '- ' : '';
@@ -710,12 +816,12 @@ function no_command(bot, from, to, text, message) {
                                 var title = title_regex.exec(data);
 
                                 if(title && title[1]) {
-                                    title[1] = title[1].replace(/\r|\n/g, ' ');
+                                    title = title[1].replace(/\r|\n/g, ' ');
 
                                     var htmlencode = require('htmlencode');
 
-                                    console.log('URL Title: ' + title[1]);
-                                    bot.say(to === bot.nick ? from : to, off_log + htmlencode.htmlDecode(title[1].trim()) + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
+                                    console.log('URL Title: ' + title);
+                                    bot.say(to === bot.nick ? from : to, off_log + htmlencode.htmlDecode(title.trim()) + ' - ' + parsed_url.protocol + '//' + parsed_url.hostname);
 
                                     found = true;
                                     req.abort();
@@ -844,6 +950,24 @@ function op_only_action(allow_pm, func) {
     }
 }
 
+function time_diff(time) {
+    var d = Date.now() - time;
+    var s = '';
+    [[1000,60,'second'], [60,60,'minute'], [60,24,'hour'], [24,365,'day'], [365,0,'year']].forEach(function(func, idx) {
+         d = Math.floor(d / func[0]);
+         var r = func[1] == 0 ? d : d % func[1];
+
+        if(r > 0) {
+            s = ' ' + r + ' ' + func[2] + (r > 1 ? 's' : '') + s;
+        }
+    });
+    return s;
+}
+
+function choose_random(list) {
+    return list[Math.floor(Math.random() * list.length)]
+}
+
 var save_log_count = 0;
 var last_log_timeout = null;
 var log_buffer = [];
@@ -906,6 +1030,9 @@ module.exports = {
     'money': { func: money, help: 'Usage: !money 1 USD to EUR. Converts between different currencies.' },
     'eightball': { func: eightball, help: 'Usage: !eightball Am I awesome?' },
     '8ball': { func: eightball, help: 'Usage: !8ball Am I awesome?' },
+    'mathgame': { func: math_game, help: 'Play a math game!' },
+    'mathanswer': { func: math_answer, help: 'Provide the answer to the math game.' },
+    // 'voteban': { func: voteban, help: 'Usage: !voteban nick. Starts a vote to ban the user.' },
     '_': no_command,
     '_init': _init,
     '_joined': _joined,
