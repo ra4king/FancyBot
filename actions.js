@@ -167,7 +167,7 @@ function notify(bot, from, to, text, message) {
 
     save_config();
 
-    bot.sayDirect(from, to, 'Ok');
+    bot.sayDirect(from, to, 'Ok.');
 }
 
 function calc(bot, from, to, text, message) {
@@ -596,7 +596,7 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
 
         save_config();
 
-        bot.sayDirect(from, to, 'Ok');
+        bot.sayDirect(from, to, 'Ok.');
     } else if(parts[0].toLowerCase() === 'remove') {
         if(parts.length == 1) {
             bot.sayDirect(from, to, 'Usage: !blacklist remove mydomain.tld');
@@ -748,6 +748,78 @@ function math_answer(bot, from, to, text, message) {
 //         bot.sayDirect(from, to, 'Voteban on ' + nick + ': ' + current_votebans[nick] + ' / 3 votes needed.');
 //     }
 // }
+
+function joke(bot, from, to, text, message) {
+    if(!text) {
+        if(config.jokes && config.jokes.length > 0) {
+            bot.sayDirect(from, to, choose_random(config.jokes));
+        } else {
+            bot.sayDirect(from, to, 'I don\'t know any jokes :(');
+        }
+    } else {
+        var parts = text.split(/\s/);
+        switch(parts[0].toLowerCase()) {
+            case 'add':
+                if(parts.length === 1) {
+                    bot.sayDirect(from, to, 'Usage: !joke add My jokes are very funny!');
+                    return;
+                }
+
+                var j = text.substring(4).trim();
+                if(config.jokes) {
+                    config.jokes.push(j);
+                } else {
+                    config.jokes = [j];
+                }
+
+                save_config();
+                bot.sayDirect(from, to, 'Ok.')
+                break;
+            case 'remove':
+                if(parts.length === 1) {
+                    bot.sayDirect(from, to, 'Usage: !joke add My jokes are - This will remove the *only* joke that matches (case INsensitive).');
+                    return;
+                }
+
+                if(config.jokes) {
+                    var j = text.substring(7).trim().toLowerCase();
+
+                    var idx = undefined;
+                    var ret = config.jokes.findIndex(function(val, i) {
+                        if(val.toLowerCase().startsWith(j)) {
+                            if(idx === undefined) {
+                                idx = i;
+                                return false;
+                            } else {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    });
+
+                    if(ret === -1) {
+                        if(idx === undefined) {
+                            bot.sayDirect(from, to, 'Could not find matching joke.');
+                        } else {
+                            var found = config.jokes.splice(idx, 1);
+                            save_config();
+
+                            bot.sayDirect(from, to, 'Removed matching joke: ' + found[0]);
+                        }
+                    } else {
+                        bot.sayDirect(from, to, 'Found more than one matching jokes.');
+                    }
+                } else {
+                    bot.sayDirect(from, to, 'I don\'t know any jokes :(');
+                }
+                break;
+            default:
+                bot.sayDirect(from, to, 'Usage: !joke [add|remove]');
+                break;
+        }
+    }
+}
 
 function no_command(bot, from, to, text, message) {
     var off_log = text[0] === '-' ? '- ' : '';
@@ -1032,6 +1104,7 @@ module.exports = {
     '8ball': { func: eightball, help: 'Usage: !8ball Am I awesome?' },
     'mathgame': { func: math_game, help: 'Play a math game!' },
     'mathanswer': { func: math_answer, help: 'Provide the answer to the math game.' },
+    'joke': { func: joke, help: 'Usage: !joke [add|remove]' },
     // 'voteban': { func: voteban, help: 'Usage: !voteban nick. Starts a vote to ban the user.' },
     '_': no_command,
     '_init': _init,
