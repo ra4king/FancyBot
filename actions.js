@@ -216,7 +216,12 @@ function exec(bot, from, to, text, message, is_calc) {
         } else if(!output) {
             bot.sayDirect(from, to, 'No output');
         } else {
-            bot.sayDirect(from, to, output.replace(/\n/g, ' ').replace(/ +/, ' '));
+            output = output.replace(/\n/g, ' ').replace(/ +/, ' ');
+            bot.sayDirect(from, to, output);
+
+            if(is_calc) {
+                exec_context['_'] = output;
+            }
         }
     } catch(e) {
         bot.sayDirect(from, to, 'Error: ' + e.message);
@@ -231,7 +236,7 @@ function init_units() {
     var inch = /inch(?:es)?/;
     var yard = /yards?/;
     var foot = /f(?:ee|oo)t/;
-    var mile = /miles?/;
+    var mile = /miles?|mi/;
 
     var millimeter = /millimet(?:er|re)s?|mm/;
     var centimeter = /centimet(?:er|re)s?|cm/;
