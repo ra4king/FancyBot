@@ -1,6 +1,10 @@
-module.exports = {
-    log_request: log_request
-};
+var log_server_port = 8000;
+
+require('http').createServer(function(request, response) {
+    log_request(request, response);
+}).listen(log_server_port, function() {
+    console.log('Log server ready on port ' + log_server_port);
+});
 
 var htmlencode = require('htmlencode');
 

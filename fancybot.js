@@ -1,8 +1,6 @@
 var irc = require('irc');
-var http = require('http');
 var reload = require('require-reload')(require);
 var actions = reload('./actions');
-var log_server = reload('./log_server');
 
 var console_log = console.log;
 var console_err = console.error;
@@ -15,7 +13,6 @@ console.error = function(text) {
 
 var name = 'FancyBot';
 var chan = '#java-gaming';
-var log_server_port = 8000;
 
 var bot = new irc.Client('irc.freenode.net', name, {
     userName: name,
@@ -139,9 +136,3 @@ process.on('exit', function() {
 });
 
 console.log('Joining freenode...');
-
-http.createServer(function(request, response) {
-    log_server.log_request(request, response);
-}).listen(log_server_port, function() {
-    console.log('Log server ready on port ' + log_server_port);
-});
