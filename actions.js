@@ -96,7 +96,8 @@ function ping(bot, from, to, text, message) {
 }
 
 function slap_msg(bot, from, to, text, message) {
-    text = text.trim();
+    text = text ? text.trim() : null;
+
     if(!text) {
         bot.sayDirect(from, to, module.exports['slapmsg'].help);
         return;
@@ -119,6 +120,8 @@ function slap(bot, from, to, text, message) {
         return;
     }
 
+    text = text.trim();
+
     var idx = text.indexOf(' ');
     var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
     if(bot.chans[to].users[nick] === undefined) {
@@ -126,7 +129,7 @@ function slap(bot, from, to, text, message) {
         return;
     }
 
-    var message = idx == -1 ? undefined : text.substring(idx).trim();
+    var message = idx == -1 ? undefined : text.substring(idx + 1).trim();
     if(!message) {
         message = choose_random(config.slap_messages);
     }
@@ -135,6 +138,7 @@ function slap(bot, from, to, text, message) {
 }
 
 function notify(bot, from, to, text, message) {
+    text = text.trim();
     var idx = text.indexOf(' ');
     if(!text || idx == -1) {
         bot.sayDirect(from, to, module.exports['notify'].help);
@@ -567,7 +571,7 @@ function money(bot, from, to, text, message) {
 }
 
 var blacklist = op_only_action(false, function(bot, from, to, text, message) {
-    var parts = text.split(' ');
+    var parts = text.split(/\s/g);
     if(parts[0].toLowerCase() === 'list') {
         if(parts.length > 1) {
             bot.sayDirect(from, to, 'Usage: !blacklist list');
@@ -590,7 +594,9 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
         }
 
         for(var i = 1; i < parts.length; i++) {
-            var url = parts[i];
+            var url = parts[i].trim();
+            if(!url)
+                continue;
 
             if(config.url_blacklist) {
                 config.url_blacklist.push(url);
@@ -762,7 +768,7 @@ function joke(bot, from, to, text, message) {
             bot.sayDirect(from, to, 'I don\'t know any jokes :(');
         }
     } else {
-        var parts = text.split(/\s/);
+        var parts = text.split(/\s/g);
         switch(parts[0].toLowerCase()) {
             case 'add':
                 if(parts.length === 1) {
@@ -824,6 +830,92 @@ function joke(bot, from, to, text, message) {
                 break;
         }
     }
+}
+
+function quote(bot, from, to, text, message) {
+    text = text ? text.trim() : null;
+
+    if(!text) {
+        bot.sayDirect(from, to, module.exports['quote'].help);
+        return;
+    }
+
+    var idx = text.indexOf(' ');
+    var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
+    var lower = nick.toLowerCase();
+
+    if(!config.quotes) {
+        config.quotes = {};
+    }
+
+    if(idx == -1) {
+        if(config.quotes[lower]) {
+            bot.sayDirect(from, to, nick + ': ' + choose_random(config.quotes[lower]));
+        } else {
+            bot.sayDirect(from, to, 'No quotes found for ' + nick + '.');
+        }
+    } else {
+        var quote = text.substring(idx + 1).trim();
+
+        if(config.quotes[lower]) {
+            config.quotes[lower].push(quote);
+        } else {
+            config.quotes[lower] = [quote];
+        }
+
+        bot.sayDirect(from, to, 'Ok.');
+    }
+
+    save_config();
+}
+
+function unquote(bot, from, to, text, message) {
+    text = text ? text.trim() : '';
+    var idx = text.indexOf(' ');
+
+    if(!text || idx == -1) {
+        bot.sayDirect(from, to, module.exports['unquote'].help);
+        return;
+    }
+
+    var nick = text.substring(0, idx).trim();
+    var quote = text.substring(idx + 1).trim().toLowerCase();
+    var lower = nick.toLowerCase();
+
+    if(!config.quotes) {
+        config.quotes = {};
+    }
+
+    if(config.quotes[lower]) {
+        var qIdx = -1;
+        var found = config.quotes[lower].findIndex(function(val, i) {
+            if(val.toLowerCase().startsWith(quote)) {
+                if(qIdx == -1) {
+                    qIdx = i;
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+
+        if(found != -1) {
+            bot.sayDirect(from, to, 'Found multiple matching quotes for ' + nick + '. Please be more specific.');
+        }
+        else if(qIdx != -1) {
+            quote = config.quotes[lower][qIdx];
+            config.quotes[lower].splice(qIdx, 1);
+            bot.sayDirect(from, to, 'Found and removed for ' + nick + ': ' + quote);
+        } else {
+            bot.sayDirect(from, to, 'Did not find matching quote for ' + nick + '.');
+        }
+    } else {
+        bot.sayDirect(from, to, 'No quotes found for ' + nick + '.');
+    }
+
+    save_config();
 }
 
 function no_command(bot, from, to, text, message) {
@@ -1111,6 +1203,8 @@ module.exports = {
     'mathanswer': { func: math_answer, help: 'Provide the answer to the math game.' },
     'joke': { func: joke, help: 'Usage: !joke [add|remove]' },
     // 'voteban': { func: voteban, help: 'Usage: !voteban nick. Starts a vote to ban the user.' },
+    'quote': { func: quote, help: 'Usage: !quote nick [new quote]. If the quote is absent, prints random saved quote for nick.' },
+    'unquote': { func: unquote, help: 'Usage: !unquote nick quote' },
     '_': no_command,
     '_init': _init,
     '_joined': _joined,

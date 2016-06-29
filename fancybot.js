@@ -72,10 +72,9 @@ bot.on('message', function(nick, to, text, message) {
             if(message.user === '~ra4king' && message.host === 'unaffiliated/ra4king') {
                 try {
                     actions = reload('./actions');
-                    log_server = reload('./log_server');
-                    bot.sayDirect(nick, to, 'Successfully reloaded the actions and log server.');
+                    bot.sayDirect(nick, to, 'Successfully reloaded the actions.');
                 } catch(e) {
-                    bot.sayDirect(nick, to, 'Failed to reload the actions: and log server ' + e.message);
+                    bot.sayDirect(nick, to, 'Failed to reload the actions ' + e.message);
                 }
                 return;
             }
