@@ -12,6 +12,8 @@ var path = '/jgo-logs';
 var channel = '#java-gaming';
 
 function log_request(request, response) {
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    
     var fs = require('fs');
 
     var param = require('url').parse(request.url, true);

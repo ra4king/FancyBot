@@ -67,12 +67,7 @@ function handle_last_seen(bot, from, to, text, message) {
     }
 }
 
-function last_seen(bot, from, to, text, message) {
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['lastseen'].help);
-        return;
-    }
-
+var lastseen = help_on_empty('lastseen', function(bot, from, to, text, message) {
     if(config.last_seen && config.last_seen[text]) {
         var last_time = config.last_seen[text].timestamp;
         var last_msg = config.last_seen[text].msg;
@@ -89,42 +84,29 @@ function last_seen(bot, from, to, text, message) {
     } else {
         bot.sayDirect(from, to, 'I have not seen ' + text);
     }
-}
+});
 
 function ping(bot, from, to, text, message) {
     bot.sayDirect(from, to, 'pong');
 }
 
-function slap_msg(bot, from, to, text, message) {
-    text = text ? text.trim() : null;
-
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['slapmsg'].help);
-        return;
-    }
-
+var slap_msg = op_only_action(help_on_empty('slapmsg', function(bot, from, to, text, message) {
     config.slap_messages.push(text);
     save_config();
 
     bot.sayDirect(from, to, 'Ok.');
-}
+}));
 
-function slap(bot, from, to, text, message) {
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['slap'].help);
-        return;
-    }
-
-    if(to === bot.nick) {
-        bot.sayDirect(from, to, 'Can\'t slap anyone in pm!');
-        return;
-    }
-
-    text = text.trim();
-
+var slap = help_on_empty('slap', function(bot, from, to, text, message) {
     var idx = text.indexOf(' ');
     var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
-    if(bot.chans[to].users[nick] === undefined) {
+
+    if(nick === bot.nick) {
+        bot.sayDirect(from, to, 'Now why would I slap myself?');
+        return;
+    }
+
+    if((to === bot.nick && nick !== from) || (to !== bot.nick && bot.chans[to].users[nick] === undefined)) {
         bot.sayDirect(from, to, nick + ' is not in this channel.');
         return;
     }
@@ -134,13 +116,12 @@ function slap(bot, from, to, text, message) {
         message = choose_random(config.slap_messages);
     }
 
-    bot.action(to, 'slaps ' + nick + ' ' + message);
-}
+    bot.action(to === bot.nick ? from : to, 'slaps ' + nick + ' ' + message);
+});
 
-function notify(bot, from, to, text, message) {
-    text = text.trim();
+var notify = help_on_empty('notify', function(bot, from, to, text, message) {
     var idx = text.indexOf(' ');
-    if(!text || idx == -1) {
+    if(idx == -1) {
         bot.sayDirect(from, to, module.exports['notify'].help);
         return;
     }
@@ -172,23 +153,14 @@ function notify(bot, from, to, text, message) {
     save_config();
 
     bot.sayDirect(from, to, 'Ok.');
-}
+});
 
-function calc(bot, from, to, text, message) {
+var calc = help_on_empty('calc', function(bot, from, to, text, message) {
     exec(bot, from, to, text, message, true);
-}
+});
 
 var exec_context = {}
-function exec(bot, from, to, text, message, is_calc) {
-    if(!text) {
-        if(is_calc) {
-            bot.sayDirect(from, to, module.exports['calc'].help);
-        } else {
-            bot.sayDirect(from, to, module.exports['exec'].help);
-        }
-        return;
-    }
-
+var exec = op_only_action(help_on_empty('exec', function(bot, from, to, text, message, is_calc) {
     if(is_calc) {
         console.log('calc: ' + text);
 
@@ -230,7 +202,7 @@ function exec(bot, from, to, text, message, is_calc) {
     } catch(e) {
         bot.sayDirect(from, to, 'Error: ' + e.message);
     }
-}
+}));
 
 var units;
 var units_regex;
@@ -381,12 +353,7 @@ function init_units() {
     }
 }
 
-function convert(bot, from, to, text, message, notify_fail) {
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['convert'].help);
-        return;
-    }
-
+var convert = help_on_empty('convert', function(bot, from, to, text, message, notify_fail) {
     var result = new RegExp(units_regex).exec(text.toLowerCase());
 
     if(!result) {
@@ -486,14 +453,9 @@ function convert(bot, from, to, text, message, notify_fail) {
 
     exec_context['_'] = converted;
     bot.sayDirect(from, to, value + ' ' + convertFrom + ' = ' + converted + ' ' + convertTo);
-}
+});
 
-function money(bot, from, to, text, message) {
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['money'].help);
-        return;
-    }
-
+var money = help_on_empty('money', function money(bot, from, to, text, message) {
     var money_regex = /^(\d+(?:\.\d+)?) ?([A-Z]{3}) TO ([A-Z]{3})$/;
     var result = money_regex.exec(text.toUpperCase());
     if(!result) {
@@ -568,9 +530,9 @@ function money(bot, from, to, text, message) {
             bot.sayDirect(from, to, 'Error accessing fixer.io API');
         });
     }
-}
+});
 
-var blacklist = op_only_action(false, function(bot, from, to, text, message) {
+var blacklist = op_only_action(help_on_empty('blacklist', function(bot, from, to, text, message) {
     var parts = text.split(/\s/g);
     if(parts[0].toLowerCase() === 'list') {
         if(parts.length > 1) {
@@ -628,21 +590,16 @@ var blacklist = op_only_action(false, function(bot, from, to, text, message) {
     } else {
         bot.sayDirect(from, to, module.exports['blacklist'].help);
     }
-});
+}));
 
-function eightball(bot, from, to, text, message) {
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['eightball'].help);
-        return;
-    }
-    
+var eightball = help_on_empty('eightball', function(bot, from, to, text, message) {
     var options = ['It is certain', 'It is decidedly so', 'Without a doubt', 'Yes, definitely', 'You may rely on it',
                    'As I see it, yes', 'Most likely', 'Outlook good', 'Yes', 'Signs point to yes', 'Reply hazy try again',
                    'Ask again later', 'Better not tell you now', 'Cannot predict now', 'Concentrate and ask again',
                    'Don\'t count on it', 'My reply is no', 'My sources say no', 'Outlook not so good', 'Very doubtful'];
 
     bot.sayDirect(from, to, choose_random(options));
-}
+});
 
 var math_game_sessions = {};
 
@@ -700,12 +657,7 @@ function math_game(bot, from, to, text, message) {
     bot.sayDirect(from, to, 'Solve: ' + val1 + ' ' + op1 + ' ' + val2 + ' ' + op2 + ' ' + val3);
 }
 
-function math_answer(bot, from, to, text, message) {
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['mathanswer']);
-        return;
-    }
-
+var math_answer = help_on_empty('mathanswer', function(bot, from, to, text, message) {
     if(!math_game_sessions[from]) {
         bot.sayDirect(from, to, 'No game started.');
         return;
@@ -727,7 +679,7 @@ function math_answer(bot, from, to, text, message) {
     } else {
         bot.sayDirect(from, to, 'Incorrect! You have ' + math_game_sessions[from].tries + ' tries left');
     }
-}
+});
 
 // var current_votebans = {};
 
@@ -832,14 +784,7 @@ function joke(bot, from, to, text, message) {
     }
 }
 
-function quote(bot, from, to, text, message) {
-    text = text ? text.trim() : null;
-
-    if(!text) {
-        bot.sayDirect(from, to, module.exports['quote'].help);
-        return;
-    }
-
+var quote = help_on_empty('quote', function(bot, from, to, text, message) {
     var idx = text.indexOf(' ');
     var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
     var lower = nick.toLowerCase();
@@ -867,13 +812,12 @@ function quote(bot, from, to, text, message) {
     }
 
     save_config();
-}
+});
 
-function unquote(bot, from, to, text, message) {
-    text = text ? text.trim() : '';
+var unquote = no_pm(help_on_empty('unquote', function(bot, from, to, text, message) {
     var idx = text.indexOf(' ');
 
-    if(!text || idx == -1) {
+    if(idx == -1) {
         bot.sayDirect(from, to, module.exports['unquote'].help);
         return;
     }
@@ -916,6 +860,19 @@ function unquote(bot, from, to, text, message) {
     }
 
     save_config();
+}));
+
+function source(bot, from, to, text, message) {
+    bot.sayDirect(from, to, 'https://www.github.com/ra4king/FancyBot');
+}
+
+function make_me_a_sandwich(bot, from, to, text, message) {
+    if(Math.random() < 0.1) {
+        var types = ['tuna', 'ham and cheese', 'bacon', 'egg', 'chicken salad', 'caprese'];
+        bot.action(to === bot.nick ? from : to, 'throws a ' + choose_random(types) + ' sandwich at ' + from);
+    } else {
+        bot.sayDirect(from, to, 'No.');
+    }
 }
 
 function no_command(bot, from, to, text, message) {
@@ -1069,6 +1026,10 @@ function _action(bot, from, to, text, message) {
 
         writeToLog(to, '* ' + from + ' ' + text);
     }
+
+    if(text.indexOf('slaps ' + bot.nick) != -1) {
+        slap(bot, from, to, from, message);
+    }
 }
 
 function _mode(bot, channel, by, mode, argument, message) {
@@ -1108,14 +1069,32 @@ function _nick(bot, oldnick, newnick, channels, message) {
     writeToLog(channels[0], '*** ' + oldnick + ' is now known as ' + newnick);
 }
 
-function op_only_action(allow_pm, func) {
+function op_only_action(func) {
     return function(bot, from, to, text, message) {
-        if((to === bot.nick && !allow_pm && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@') || (bot.chans[to] && bot.chans[to].users[from] !== '@')) {
+        if(!bot.chans || !bot.chans[bot.channel] || bot.chans[bot.channel].users[from] !== '@') {
             bot.sayDirect(from, to, 'Only ops may use this command.');
             return;
         }
 
         func.apply(this, arguments);
+    }
+}
+
+function no_pm(func) {
+    return function(bot, from, to, text, message) {
+        if(!(to === bot.nick && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@')) {
+            func.apply(this, arguments);
+        }
+    }
+}
+
+function help_on_empty(name, func) {
+    return function(bot, from, to, text, message) {
+        if(!text.trim()) {
+            bot.sayDirect(from, to, module.exports[name].help);
+        } else {
+            func.apply(this, arguments);
+        }
     }
 }
 
@@ -1188,13 +1167,13 @@ module.exports = {
     'ping': { func: ping, help: 'Replies with pong' },
     'notify': { func: notify, help: 'Usage: !notify nick message. Will send the message when the specified nick is seen. Same as !tell.' },
     'tell': { func: notify, help: 'Usage: !tell nick message. Will send the message when the specified nick is seen. Same as !notify.' },
-    'slapmsg': { func: op_only_action(false, slap_msg), help: 'Usage: !slapmsg message. Adds a slap message to be used next time someone is slapped.' },
+    'slapmsg': { func: slap_msg, help: 'Usage: !slapmsg message. Adds a slap message to be used next time someone is slapped.' },
     'slap': { func: slap, help: 'Usage: !slap nick [message]. Will slap the nick with a creative message or optionally provided message.' },
     'calc': { func: calc, help: 'Usage: !calc 4 + 5. Same as !eval. Evaluates and prints a javascript expression.' },
     'eval': { func: calc, help: 'Usage: !eval 4 + 5. Same as !calc. Evaluates and prints a javascript expression.' },
-    'exec': { func: op_only_action(false, exec), help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
+    'exec': { func: exec, help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
     'blacklist': { func: blacklist, help: 'Usage: !blacklist list|add|remove. Manage URL title-grabber blacklist.' },
-    'lastseen': { func: last_seen, help: 'Usage: !lastseen nick. Prints how long ago nick was seen.' },
+    'lastseen': { func: lastseen, help: 'Usage: !lastseen nick. Prints how long ago nick was seen.' },
     'convert': { func: convert, help: 'Usage: !convert 45 feet to meters. Converts between different units.' },
     'money': { func: money, help: 'Usage: !money 1 USD to EUR. Converts between different currencies.' },
     'eightball': { func: eightball, help: 'Usage: !eightball Am I awesome?' },
@@ -1205,6 +1184,8 @@ module.exports = {
     // 'voteban': { func: voteban, help: 'Usage: !voteban nick. Starts a vote to ban the user.' },
     'quote': { func: quote, help: 'Usage: !quote nick [new quote]. If the quote is absent, prints random saved quote for nick.' },
     'unquote': { func: unquote, help: 'Usage: !unquote nick quote' },
+    'source': { func: source, help: 'Usage: !source' },
+    'makemeasandwich': { func: make_me_a_sandwich, help: 'Usage: !makemeasandwich' },
     '_': no_command,
     '_init': _init,
     '_joined': _joined,
