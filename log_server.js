@@ -10,6 +10,7 @@ var htmlencode = require('htmlencode');
 
 var path = '/jgo-logs';
 var channel = '#java-gaming';
+var min_date = '2015-03-25';
 
 function log_request(request, response) {
     response.setHeader('Access-Control-Allow-Origin', '*');
@@ -77,7 +78,8 @@ function dateToString(date) {
 }
 
 function generateHTML(date_string, lines) {
-    var title = lines === null ? '' : htmlencode.htmlEncode(date_string);
+    var date_string_html = htmlencode.htmlEncode(date_string);
+    var title = lines === null ? '' : date_string_html;
 
     var d = new Date(date_string);
     d.setUTCDate(d.getUTCDate() - 1);
@@ -85,7 +87,7 @@ function generateHTML(date_string, lines) {
     d.setUTCDate(d.getUTCDate() + 2)
     var next_date = dateToString(d);
 
-    var prev_date_html = '<a id="prev_date" href="?date=' + prev_date + '">' + htmlencode.htmlEncode('<-- ' + prev_date) + '</a>';
+    var prev_date_html = Date.parse(prev_date) - Date.parse(min_date) >= 0 ? '<a id="prev_date" href="?date=' + prev_date + '">' + htmlencode.htmlEncode('<-- ' + prev_date) + '</a>' : '<div id="prev_date"></div>';
     var today_html = '<a id="today" href="?">' + dateToString(new Date()) + '</a>';
     var next_date_html = Date.parse(next_date) - Date.now() > 0 ? '<div id="next_date"></div>' : '<a id="next_date" href="?date=' + next_date + '">' + htmlencode.htmlEncode(next_date + ' -->') + '</a>';
     var prev_next_date_html = '     <div>' + prev_date_html + today_html + next_date_html + '</div>\n';
@@ -99,7 +101,10 @@ function generateHTML(date_string, lines) {
     html += '   <body>\n';
     html += '       <h1>' + channel + ' logs ' + title + '</h1>\n';
     html += '       <form method="get">\n';
-    html += '           <div id="datepicker">Date: <input type="date" name="date"/> <input type="submit" value="Go" id="datego"></div>\n';
+    html += '           <div id="datepicker">\n';
+    html += '               Date: <input type="date" name="date" min="' + min_date + '" value="' + date_string_html + '"/>\n';
+    html += '               <input type="submit" value="Go" id="datego">\n';
+    html += '           </div>\n';
     html += '       </form>\n';
     if(lines) {
         html += prev_next_date_html;
