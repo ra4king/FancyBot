@@ -56,6 +56,14 @@ bot.on('kick', function(channel, nick, by, reason ,message) {
 });
 
 bot.on('nick', function(oldnick, newnick, channels, message) {
+    if(bot.nick != name) {
+        bot.send('NICK', name);
+    }
+
+    if(newnick === name) {
+        actions['_init'](bot, message);
+    }
+
     actions['_nick'](bot, oldnick, newnick, channels, message);
 });
 
