@@ -155,12 +155,8 @@ var notify = help_on_empty('notify', function(bot, from, to, text, message) {
     bot.sayDirect(from, to, 'Ok.');
 });
 
-var calc = help_on_empty('calc', function(bot, from, to, text, message) {
-    exec(bot, from, to, text, message, true);
-});
-
 var exec_context = {}
-function exec(bot, from, to, text, message, is_calc) {
+var exec = help_on_empty('exec', op_only_action(function(bot, from, to, text, message, is_calc) {
     if(is_calc) {
         console.log('calc: ' + text);
 
@@ -204,7 +200,15 @@ function exec(bot, from, to, text, message, is_calc) {
     } catch(e) {
         bot.sayDirect(from, to, 'Error: ' + e.message);
     }
-}
+}));
+
+var calc = help_on_empty('calc', function(bot, from, to, text, message) {
+    exec(bot, from, to, text, message, true);
+});
+
+var eval = help_on_empty('eval', function(bot, from, to, text, message) {
+    exec(bot, from, to, text, message, true);
+});
 
 var units;
 var units_regex;
@@ -1176,8 +1180,8 @@ module.exports = {
     'slapmsg': { func: slap_msg, help: 'Usage: !slapmsg message. Adds a slap message to be used next time someone is slapped.' },
     'slap': { func: slap, help: 'Usage: !slap nick [message]. Will slap the nick with a creative message or optionally provided message.' },
     'calc': { func: calc, help: 'Usage: !calc 4 + 5. Same as !eval. Evaluates and prints a javascript expression.' },
-    'eval': { func: calc, help: 'Usage: !eval 4 + 5. Same as !calc. Evaluates and prints a javascript expression.' },
-    'exec': { func: op_only_action(help_on_empty('exec', exec)), help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
+    'eval': { func: eval, help: 'Usage: !eval 4 + 5. Same as !calc. Evaluates and prints a javascript expression.' },
+    'exec': { func: exec, help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.' },
     'blacklist': { func: blacklist, help: 'Usage: !blacklist list|add|remove. Manage URL title-grabber blacklist.' },
     'lastseen': { func: lastseen, help: 'Usage: !lastseen nick. Prints how long ago nick was seen.' },
     'convert': { func: convert, help: 'Usage: !convert 45 feet to meters. Converts between different units.' },
