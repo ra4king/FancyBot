@@ -2,19 +2,20 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     if(!config.slap_messages) {
         config.slap_messages = [];
     }
 
     var slapmsg_options = {
         name: 'slapmsg',
-        help: 'Usage: !slapmsg message. Adds a slap message to be used next time someone is slapped.',
-        help_on_empty: true,
-        op_only: true,
+        list_name: 'slap_messages',
+        element_name: 'slap message',
+        help: 'Usage: !slapmsg list|add|remove message. Adds a slap message to be used next time someone is slapped.',
+        remove_closest_match: true,
     };
 
-    action(slapmsg_options, slapmsg);
+    utils.create_list_action(action, slapmsg_options);
 
     var slap_options = {
         name: 'slap',
@@ -30,13 +31,6 @@ function init(bot, action, utils, config) {
     });
 }
 
-function slapmsg(bot, from, to, text, message, utils, config) {
-    config.slap_messages.push(text);
-    utils.save_config();
-
-    bot.sayDirect(from, to, 'Ok.');
-}
-
 function slap(bot, from, to, text, message, utils, config) {
     var idx = text.indexOf(' ');
     var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
@@ -46,7 +40,7 @@ function slap(bot, from, to, text, message, utils, config) {
         return;
     }
 
-    if((to === bot.nick && nick !== from) || (to !== bot.nick && bot.chans[to].users[nick] === undefined)) {
+    if((to === bot.nick && nick !== from) || (to === bot.channel && bot.chans[to.toLowerCase()].users[nick] === undefined)) {
         bot.sayDirect(from, to, nick + ' is not in this channel.');
         return;
     }

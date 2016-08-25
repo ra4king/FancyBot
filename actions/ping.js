@@ -2,7 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, config) {
+function init(action, config) {
     var options = {
         name: 'ping',
         help: 'Replies with pong',

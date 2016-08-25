@@ -2,7 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     var game_options = {
         name: 'mathgame',
         help: 'Usage: !mathgame. Play a math game!',
@@ -89,12 +89,12 @@ function math_answer(bot, from, to, text, message, utils, config) {
     }
 
     if(num === math_game_sessions[from].answer) {
-        bot.sayDirect(from, to, 'Correct! You solved it in' + utils.time_diff(math_game_sessions[from].timestamp));
+        bot.sayDirect(from, to, 'Correct! You solved it in' + utils.time_diff(math_game_sessions[from].timestamp) + '.');
         delete math_game_sessions[from];
     } else if(--math_game_sessions[from].tries == 0) {
-        bot.sayDirect(from, to, 'Incorrect! Out of tries, answer: ' + math_game_sessions[from].answer);
+        bot.sayDirect(from, to, 'Incorrect! Out of tries, answer: ' + math_game_sessions[from].answer + '.');
         delete math_game_sessions[from];
     } else {
-        bot.sayDirect(from, to, 'Incorrect! You have ' + math_game_sessions[from].tries + ' tries left');
+        bot.sayDirect(from, to, 'Incorrect! You have ' + math_game_sessions[from].tries + ' tries left.');
     }
 }

@@ -2,13 +2,13 @@ module.exports = {
     init: init,
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     utils.globals.exec_context = {};
 
     var exec_options = {
         name: 'exec',
         help: 'Usage: !exec print("Hello, world!"). Evaluates a javascript expression.',
-        op_only_action: true,
+        op_only: true,
         help_on_empty: true,
     };
 
@@ -17,7 +17,7 @@ function init(bot, action, utils, config) {
     var calc_options = {
         name: 'calc',
         help: 'Usage: !calc 4 + 5. Same as !eval. Evaluates and prints a javascript expression.',
-        op_only_action: true,
+        op_only: true,
         help_on_empty: true,
     };
 
@@ -28,7 +28,7 @@ function init(bot, action, utils, config) {
     var eval_options = {
         name: 'eval',
         help: 'Usage: !eval 4 + 5. Same as !calc. Evaluates and prints a javascript expression.',
-        op_only_action: true,
+        op_only: true,
         help_on_empty: true,
     };
 

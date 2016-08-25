@@ -1,0 +1,55 @@
+// Must export an init method
+module.exports = {
+    init: init
+};
+
+/*
+Initializes this action or set of actions.
+
+Parameters:
+    action: function(options, func)
+        options: {
+            name: string, command name.
+            help: string, help message
+            op_only: boolean, only ops will be allowed to use the command when true
+            no_pm: boolean, command not allowed to be used in pm when true
+            help_on_empty: boolean, help message displayed with no command text when true
+        }
+        func: function(bot, from, to, text, message, utils, config)
+            bot: object, the node-irc bot: http://node-irc.readthedocs.io/
+                 See also README for more information.
+            from: string, the nick of the command issuer
+            to: string, either the channel of the bot or if in pm, the name of the bot itself. Compare against bot.nick to find out which was used
+            text: string, the text following the command
+            message: object, node-irc raw message: http://node-irc.readthedocs.io/en/latest/API.html#'raw'
+            utils: object, same as init utils
+            config: object, same as init utils
+    utils: {
+        save_config: function, whenever config is modified, call this function to save to disk.
+                     This function is debounced, meaning multiple rapid calls are reduced to a single call.
+        globals: object, shareable by all actions, to be used for inter-action sharing of information
+
+        ... all functions listed in utils.js ...
+    }
+    config: object, to be freely used for storing data. Call utils.save_config() to permanently save config to disk.
+*/
+function init(action, utils, config) {
+    var options = {
+        name: 'example',
+        help: 'Usage: !example my example command. This is to show the typical format of a help message.',
+        op_only: false,
+        no_pm: false,
+        help_on_empty: true,
+    };
+
+    action(options, example);
+
+    if(!config.count)
+        config.count = 0;
+}
+
+function example(bot, from, to, text, message, utils, config) {
+    config.count++;
+    
+    bot.sayDirect(from, to, 'Example command usage count: ' + config.count + '. Supplied arguments: ' + text);
+}

@@ -2,7 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     var last_seen_options = {
         name: 'lastseen',
         help: 'Usage: !lastseen nick. Prints how long ago nick was seen.',

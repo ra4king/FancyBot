@@ -2,9 +2,18 @@ module.exports = {
     init: init,
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     action({name: '_'}, no_command);
-    utils.create_list_action(action, 'blacklist', 'url_blacklist', 'Manage URL title-grabber blacklist.', true);
+
+    var options = {
+        name: 'blacklist',
+        list_name: 'url_blacklist',
+        element_name: 'url',
+        help: 'Manage URL title-grabber blacklist.',
+        op_only: true,
+        split_token: /\s/g,
+    };
+    utils.create_list_action(action, options);
 }
 
 function no_command(bot, from, to, text, message, utils, config) {

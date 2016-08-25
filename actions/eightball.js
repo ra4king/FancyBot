@@ -2,7 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     var options = {
         name: 'eightball',
         help: 'Usage: !eightball Am I awesome?',

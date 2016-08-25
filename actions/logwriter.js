@@ -2,10 +2,17 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     action({name: '_msg'}, function(bot, from, to, text, message, utils, config) {
         if(to !== bot.nick && text[0] !== '-') {
             writeToLog(to, '<' + from + '> ' + text);
+        }
+    });
+
+    action({name: '_notice'}, function(bot, from, to, text, message, utils, config) {
+        if(to === bot.channel) {
+            from = from == null ? 'Server' : from;
+            writeToLog(to, '-' + from + '- ' + text);
         }
     });
 

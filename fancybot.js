@@ -1,6 +1,8 @@
 var irc = require('irc');
+var fs = require('fs');
+var EventEmitter = require('events');
 var reload = require('require-reload')(require);
-var actions = reload('./actions');
+var utils;
 
 var console_log = console.log;
 var console_err = console.error;
@@ -8,13 +10,196 @@ console.log = function(text) {
     console_log(new Date().toUTCString() + ' - ' + text);
 }
 console.error = function(text) {
-    console_err(new Date().toUTCString() + ' - ERROR: ' +  + text);
+    console_err(new Date().toUTCString() + ' - ERROR: ' + text);
 }
 
-var name = 'FancyBot';
-var chan = '#java-gaming';
+var config;
 
-var bot = new irc.Client('irc.freenode.net', name, {
+function load_config() {
+    try {
+        config = JSON.parse(fs.readFileSync('config.json'));
+        console.log('Loaded config');
+    } catch(e) {
+        console.error('COULD NOT LOAD CONFIG: ' + e + '\n' + e.stack);
+        config = {};
+    }
+}
+
+var save_config_count = 0;
+var last_config_timeout = null;
+function save_config() {
+    if(save_config_count < 10) {
+        if(last_config_timeout) {
+            clearTimeout(last_config_timeout);
+            save_config_count++;
+        }
+
+        last_config_timeout = setTimeout(function() {
+            save_config_count = 0;
+            last_config_timeout = null;
+            fs.writeFile('config.json', JSON.stringify(config, null, 4), function(err) {
+                if(err)
+                    console.error('ERROR: COULD NOT WRITE CONFIG!');
+            });
+        }, 1000);
+    }
+}
+
+var actions = new EventEmitter();
+var modules;
+var globals;
+
+function load_actions() {
+    load_config();
+
+    utils = reload('./utils.js');
+
+    if(modules) {
+        for(var module in modules) {
+            if(modules[module].destroy) {
+                try {
+                    modules[module].destroy();
+                } catch(e) {
+                    console.error('while destroying ' + module + ': ' + e);
+                }
+            }
+        }
+    }
+
+    actions.removeAllListeners();
+    modules = {};
+    globals = {};
+
+    function help_on_empty(func) {
+        return function(bot, from, to, text) {
+            if(!text.trim()) {
+                return true;
+            } else {
+                return func.apply(this, arguments);
+            }
+        }
+    }
+
+    function op_only(func) {
+        return function(bot, from, to) {
+            if(!bot.chans || !bot.chans[bot.channel.toLowerCase()] || bot.chans[bot.channel.toLowerCase()].users[from] !== '@') {
+                bot.sayDirect(from, to, 'Only ops may use this command.');
+                return;
+            }
+
+            return func.apply(this, arguments);
+        }
+    }
+
+    function no_pm(func) {
+        return function(bot, from, to) {
+            if(to === bot.nick && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@') {
+                bot.sayDirect(from, to, 'This command is not allowed in pm.');
+            } else {
+                return func.apply(this, arguments);
+            }
+        }
+    }
+
+    var help_msgs = {};
+
+    actions.on('reload', op_only(function(bot, from, to, text, message) {
+        try {
+            console.log('Reloading actions...');
+            load_actions();
+            console.log('Successfully reloaded the actions.');
+            bot.sayDirect(from, to, 'Successfully reloaded the actions.');
+        } catch(e) {
+            console.log('Failed to reload the actions ' + e + '\n' + e.stack);
+            bot.sayDirect(from, to, 'Failed to reload the actions ' + e.message);
+        }
+    }));
+    help_msgs['reload'] = 'Usage: !reload. Reloads all actions, op only use.';
+
+    actions.on('help', function(bot, from, to, text, message) {
+        if(text) {
+            if(help_msgs[text]) {
+                bot.sayDirect(from, to, help_msgs[text]);
+            } else {
+                bot.sayDirect(from, to, 'No help message found for command \'' + text + '\'.');
+            }
+        } else {
+            var commands = '';
+            for(var command in actions._events) {
+                if(command[0] !== '_') {
+                    commands += ' ' + command;
+                }
+            }
+            bot.sayDirect(from, to, 'Available commands:' + commands);
+        }
+    });
+    help_msgs['help'] = 'Usage: !help [command]. Displays a help message for the command, or if ommitted lists all available commands.'
+
+    fs.readdirSync('actions/').forEach(function(file) {
+        if(!file.endsWith('.js')) return;
+
+        var name = file.substring(0, file.length - 3);
+
+        if(name === 'bot') {
+            throw 'Cannot use reserved name \'bot\'.';
+        }
+
+        modules[name] = reload('./actions/' + file);
+
+        var action_utils = {
+            save_config: save_config,
+            globals: globals,
+        };
+        Object.assign(action_utils, utils);
+
+        if(!config[name]) {
+            config[name] = {};
+        }
+        var action_config = config[name];
+
+        function action(options, func) {
+            if(options.name[0] !== '_') {
+                if(actions.listenerCount(options.name) > 0) {
+                    throw 'Cannot have two user actions registered to the same name.';
+                }
+
+                if(options.help_on_empty) {
+                    func = help_on_empty(func);
+                }
+                if(options.op_only) {
+                    func = op_only(func);
+                }
+                if(options.no_pm) {
+                    func = no_pm(func);
+                }
+
+                help_msgs[options.name] = options.help;
+            }
+
+            var f = function(bot, from, to) {
+                var args = Array.from(arguments).concat([action_utils, action_config]);
+                if(func.apply(this, args) && options.name[0] !== '_' && options.help) {
+                    bot.sayDirect(from, to, options.help);
+                }
+            };
+
+            actions.on(options.name, f);
+        }
+
+        if(modules[name].init) {
+            modules[name].init(action, action_utils, action_config);
+            console.log('Loaded ' + name);
+        }
+    });
+}
+
+load_actions();
+
+var name = config.bot && config.bot.name ? config.bot.name : 'FancyBot';
+var server = config.bot && config.bot.server ? config.bot.server : 'irc.freenode.net';
+var chan = config.bot && config.bot.channel ? config.bot.channel : '##FancyBot';
+
+var bot = new irc.Client(server, name, {
     userName: name,
     realName: name,
     channels: [chan],
@@ -32,27 +217,34 @@ bot.sayDirect = function(from, to, message) {
 
 bot.on('registered', function(message) {
     console.log('Successfully joined freenode!');
-    actions['_init'](bot, message);
+
+    if(config.bot && config.bot.password) {
+        console.log('Identifying...');
+        bot.say('NickServ', 'identify ' + config.bot.password);
+    }
+
+    actions.emit('_init', bot, message);
 });
 
 bot.on('join', function(channel, nick, message) {
     if(nick === bot.nick) {
-        actions['_joined'](bot, channel, message);
+        console.log('Joined ' + channel);
+        actions.emit('_joined', bot, channel, message);
     } else {
-        actions['_join'](bot, channel, nick, message);
+        actions.emit('_join', bot, channel, nick, message);
     }
 });
 
 bot.on('part', function(channel, nick, reason, message) {
-    actions['_part'](bot, channel, nick, reason, message);
+    actions.emit('_part', bot, channel, nick, reason, message);
 });
 
 bot.on('quit', function(nick, reason, channels, message) {
-    actions['_quit'](bot, bot.channel, nick, reason, message);
+    actions.emit('_quit', bot, bot.channel, nick, reason, message);
 });
 
 bot.on('kick', function(channel, nick, by, reason ,message) {
-    actions['_kick'](bot, channel, nick, by, reason, message);
+    actions.emit('_kick', bot, channel, nick, by, reason, message);
 });
 
 bot.on('nick', function(oldnick, newnick, channels, message) {
@@ -61,77 +253,53 @@ bot.on('nick', function(oldnick, newnick, channels, message) {
     }
 
     if(newnick === name) {
-        actions['_init'](bot, message);
+        actions.emit('_init', bot, message);
     }
 
-    actions['_nick'](bot, oldnick, newnick, channels, message);
+    actions.emit('_nick', bot, oldnick, newnick, channels, message);
 });
 
 bot.on('message', function(nick, to, text, message) {
-    actions['_msg'](bot, nick, to, text, message);
+    actions.emit('_msg', bot, nick, to, text, message);
 
     if(text[0] === '!') {
         var index = text.indexOf(' ');
         var command = text.substring(1, index == -1 ? undefined : index).trim();
 
         console.log('Detected command from ' + nick + ': ' + command);
-
-        if(command === 'reload') {
-            if(message.user === '~ra4king' && message.host === 'unaffiliated/ra4king') {
-                try {
-                    actions = reload('./actions');
-                    bot.sayDirect(nick, to, 'Successfully reloaded the actions.');
-                } catch(e) {
-                    bot.sayDirect(nick, to, 'Failed to reload the actions ' + e.message);
-                }
-                return;
-            }
-        }
-        else if(command === 'help') {
-            if(index != -1 && index < text.length) {
-                var help_command = text.substring(index + 1).trim();
-                if(help_command[0] != '_' && actions[help_command]) {
-                    bot.sayDirect(nick, to, actions[help_command].help);
-                } else {
-                    bot.sayDirect(nick, to, 'Command does not exist.');
-                }
-            } else {
-                var commands = '';
-                for(c in actions) {
-                    if(c[0] !== '_') {
-                        commands += ' ' + c;
-                    }
-                }
-                bot.sayDirect(nick, to, 'Available commands:' + commands);
-            }
-        }
-        else if(command[0] != '_' && actions[command]) {
-            actions[command].func(bot, nick, to, index == -1 ? '' : text.substring(index).trim(), message);
+        
+        if(command[0] != '_' && actions.emit(command, bot, nick, to, index == -1 ? '' : text.substring(index).trim(), message)) {
             return;
         }
+
+        console.log('Command \'' + command + '\' not found.');
     }
 
-    actions['_'](bot, nick, to, text, message);
+    actions.emit('_', bot, nick, to, text, message);
 });
 
 bot.on('notice', function(nick, to, text, message) {
-    actions['_notice'](bot, nick, to, text, message);
+    if(to === bot.nick) {
+        console.log('NOTICE: -' + (nick === null ? 'Server' : nick) + '- ' + text);
+    }
+
+    actions.emit('_notice', bot, nick, to, text, message);
 });
 
 bot.on('selfMessage', function(to, text) {
-    actions['_self'](bot, to, text);
+    actions.emit('_self', bot, to, text);
 });
 
 bot.on('action', function(nick, to, text, message) {
-    actions['_action'](bot, nick, to, text, message);
+    actions.emit('_action', bot, nick, to, text, message);
 });
 
 bot.on('+mode', function(channel, by, mode, argument, message) {
-    actions['_mode'](bot, channel, by, '+' + mode, argument, message);
+    actions.emit('_mode', bot, channel, by, '+' + mode, argument, message);
 });
 
 bot.on('-mode', function(channel, by, mode, argument, message) {
-    actions['_mode'](bot, channel, by, '-' + mode, argument, message);
+    actions.emit('_mode', bot, channel, by, '-' + mode, argument, message);
 });
 
 bot.on('error', function(message) {

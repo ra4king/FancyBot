@@ -2,7 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     var options = {
         name: 'money',
         help: 'Usage: !money 1 USD to EUR. Converts between different currencies.',
@@ -50,8 +50,6 @@ function money(bot, from, to, text, message) {
                 try {
                     var json = JSON.parse(data);
                     var converted = reversed ? value / json.last : value * json.last;
-
-                    converted = Math.round(converted * 100) / 100;
 
                     bot.sayDirect(from, to, 'date = ' + new Date(json.timestamp).toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + converted + ' ' + toCurr);
                 } catch(e) {

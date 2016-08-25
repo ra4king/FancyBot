@@ -1,2 +1,4 @@
-*.sh
 date_fixer/
+logs/
+*.sh
+*.json

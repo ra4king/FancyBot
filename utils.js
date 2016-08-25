@@ -1,41 +1,18 @@
 module.exports = {
-    help_on_empty: help_on_empty,
-    op_only: op_only,
-    no_pm: no_pm,
     time_diff: time_diff,
     choose_random: choose_random,
     create_list_action: create_list_action,
 };
 
-function help_on_empty(name, func) {
-    return function(bot, from, to, text, message) {
-        if(!text.trim()) {
-            return true;
-        } else {
-            func.apply(this, arguments);
-        }
-    }
-}
+/*
+Returns a string representing the time difference between now and the supplied time.
 
-function op_only(func) {
-    return function(bot, from, to, text, message) {
-        if(!bot.chans || !bot.chans[bot.channel] || bot.chans[bot.channel].users[from] !== '@') {
-            bot.sayDirect(from, to, 'Only ops may use this command.');
-            return;
-        }
+Parameters:
+    time: number, prior time in milliseconds elapsed since UNIX epoch.
 
-        func.apply(this, arguments);
-    }
-}
-
-function no_pm(func) {
-    return function(bot, from, to, text, message) {
-        if(!(to === bot.nick && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@')) {
-            func.apply(this, arguments);
-        }
-    }
-}
-
+Returns:
+    String representing time difference in format: Y year[s], D day[s], H hour[s], M minute[s], S second[s].
+*/
 function time_diff(time) {
     var d = Date.now() - time;
     var s = '';
@@ -50,77 +27,150 @@ function time_diff(time) {
     return s;
 }
 
+/*
+Returns a random element from the list.
+
+Paremeters:
+    list: list or string, indexable list of elements.
+
+Returns:
+    Random element from the list.
+*/
 function choose_random(list) {
     return list[Math.floor(Math.random() * list.length)]
 }
 
-function create_list_action(action, action_name, list_name, help, op_only) {
+/*
+Creates and registers an action that maintains a list with list/add/remove capabilities.
+Usually used in conjunction with other commands or functionalities that require a user-maintained list.
+
+Parameters:
+    action: function, action that is passed to module init function
+    options: {
+        name: string, name of user-facing command.
+        list_name: string, property name of array inside config.
+        element_name: string, name of single element to be shown in status messages.
+        help: string, help message appended after auto-generated usage.
+        disable_list: boolean, 'list' subcommand disabled.
+        remove_closest_match: boolean, 'remove' will best matching element, not exact match.
+        op_only: boolean, only ops may use function.
+        split_token: string or regex, token for splitting command text. When unset, no splitting is done.
+        on_empty: function, to run when no subcommand is given.
+    }
+*/
+function create_list_action(action, options) {
     function list_action(bot, from, to, text, message, utils, config) {
-        var parts = text.split(/\s/g);
-        if(parts[0].toLowerCase() === 'list') {
-            if(parts.length > 1) {
-                ret.sayDirect(from, to, 'Usage: !' + action_name + ' list');
-                return;
-            }
+        if(!text.trim() && options.on_empty) {
+            options.on_empty(bot, from, to, message, utils, config);
+        }
+        else {
+            var space = text.indexOf(' ');
+            var subcommand = text.substring(0, space == -1 ? text.length : space).trim().toLowerCase();
+            var rest = text.substring(space == -1 ? text.length : space).trim();
 
-            var s = '';
-            if(config[list_name]) {
-                config[list_name].forEach(function(b) {
-                    s += b + ' - ';
+            if(!options.disable_list && subcommand === 'list') {
+                if(rest) {
+                    ret.sayDirect(from, to, 'Usage: !' + options.name + ' list');
+                    return;
+                }
+
+                var s = '';
+                if(config[options.list_name]) {
+                    config[options.list_name].forEach(function(b) {
+                        s += b + ' - ';
+                    });
+                    s = s.substring(0, s.length - 3);
+                }
+                
+                bot.sayDirect(from, to, s);
+            } else if(subcommand === 'add') {
+                if(!rest) {
+                    bot.sayDirect(from, to, 'Usage: !' + options.name + ' add ' + options.element_name);
+                    return;
+                }
+
+                var element_parts = rest.split(options.split_token);
+
+                element_parts.forEach(function(part) {
+                    part = part.trim();
+                    if(!part) return;
+
+                    if(config[options.list_name]) {
+                        config[options.list_name].push(part);
+                    } else {
+                        config[options.list_name] = [part];
+                    }
                 });
-                s = s.substring(0, s.length - 3);
-            }
-            
-            bot.sayDirect(from, to, s);
-        } else if(parts[0].toLowerCase() === 'add') {
-            if(parts.length == 1) {
-                bot.sayDirect(from, to, 'Usage: !' + action_name + ' add element');
-                return;
-            }
 
-            for(var i = 1; i < parts.length; i++) {
-                var url = parts[i].trim();
-                if(!url)
-                    continue;
+                utils.save_config();
 
-                if(config[list_name]) {
-                    config[list_name].push(url);
+                bot.sayDirect(from, to, 'Ok.');
+            } else if(subcommand === 'remove') {
+                if(!rest) {
+                    bot.sayDirect(from, to, 'Usage: !' + options.name + ' remove ' + options.element_name + '. Will remove closest match (case INsensitive).');
+                    return;
+                }
+
+                var element_parts = rest.toLowerCase().split(options.split_token);
+                if(options.remove_closest_match) {
+                    element_parts.forEach(function(element) {
+                        var idx = undefined;
+                        var override = false;
+                        var ret = config[options.list_name].findIndex(function(val, i) {
+                            if(val.toLowerCase().startsWith(element)) {
+                                if(idx === undefined) {
+                                    idx = i;
+                                    return false;
+                                } else if(element === config[options.list_name][idx]) {
+                                    override = true;
+                                    return true;
+                                } else {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        });
+
+                        if(ret === -1 || override) {
+                            if(idx === undefined) {
+                                bot.sayDirect(from, to, 'Could not find matching ' + options.element_name + '.');
+                            } else {
+                                var found = config.jokes.splice(idx, 1);
+                                utils.save_config();
+
+                                bot.sayDirect(from, to, 'Removed closest matching ' + options.element_name + ': ' + found[0]);
+                            }
+                        } else {
+                            bot.sayDirect(from, to, 'Found more than one matching ' + options.element_name + '.');
+                        }
+                    });
                 } else {
-                    config[list_name] = [url];
+                    element_parts.forEach(function(part) {
+                        var index;
+                        if((index = config[options.list_name].findIndex(function(value) {
+                            return value === part;
+                        })) != -1) {
+                            bot.sayDirect(from, to, 'Removed ' + options.element_name + ': ' + config[options.list_name][index]);
+                            config[options.list_name].splice(index, 1);
+                            utils.save_config();
+                        } else {
+                            bot.sayDirect(from, to, 'Could not find matching ' + options.element_name + '.');
+                        }
+                    });
                 }
+            } else {
+                return true;
             }
-
-            save_config();
-
-            bot.sayDirect(from, to, 'Ok.');
-        } else if(parts[0].toLowerCase() === 'remove') {
-            if(parts.length == 1) {
-                bot.sayDirect(from, to, 'Usage: !' + action_name + ' remove element. Will remove closest match (case INsensitive).');
-                return;
-            }
-
-            for(var i = 1; i < parts.length; i++) {
-                var index;
-                if((index = config[list_name].findIndex(function(value) {
-                    return value === parts[i];
-                })) != -1) {
-                    config[list_name].splice(index, 1);
-                    save_config();
-                }
-            }
-
-            bot.sayDirect(from, to, 'Ok.');
-        } else {
-            return true;
         }
     }
 
-    var options = {
-        name: action_name,
-        help: 'Usage: !' + action_name + ' list|add|remove. ' + help,
-        help_on_empty: true,
-        op_only: op_only,
+    var action_options = {
+        name: options.name,
+        help: 'Usage: !' + options.name + ' ' + (options.disable_list ? '' : 'list|') + 'add|remove. ' + options.help,
+        help_on_empty: !options.on_empty,
+        op_only: options.op_only,
     };
 
-    action(options, list_action);
+    action(action_options, list_action);
 }

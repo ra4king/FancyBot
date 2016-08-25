@@ -2,7 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
+function init(action, utils, config) {
     var options = {
         name: 'convert',
         help: 'Usage: !convert 45 feet to meters. Converts between different units.',

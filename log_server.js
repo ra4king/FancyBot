@@ -111,7 +111,7 @@ function generateHTML(date_string, lines) {
         html += '       <hr />\n';
 
         lines.forEach(function(s) {
-            var msg_regex = /^(\[.+?\])  (<.+?> |\* )?(.+)$/;
+            var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
             var match = msg_regex.exec(s);
             if(!match) {
                 return;
@@ -182,7 +182,7 @@ function generateJSON(date_string, lines) {
     };
 
     lines.forEach(function(s) {
-        var msg_regex = /^\[(.+?)\]  (?:<(.+?)> )?(.+)$/;
+        var msg_regex = /^\[(.+?)\]  (?:([<-])(.+?)[>-] )?(.+)$/;
         var match = msg_regex.exec(s);
         if(!match) {
             return;
@@ -190,8 +190,9 @@ function generateJSON(date_string, lines) {
 
         json.logs.push({
             timestamp: match[1],
-            nick: match[2] ? match[2] : null,
-            text: match[3]
+            nick: match[3] ? match[3] : null,
+            text: match[4],
+            notice: match[2] === '-' ? true : undefined,
         });
     });
 

@@ -2,11 +2,7 @@ module.exports = {
     init: init
 };
 
-function init(bot, action, utils, config) {
-    if(!config.notify_messages) {
-        config.notify_messages = {};
-    }
-    
+function init(action, utils, config) {
     var options = {
         name: 'notify',
         help: 'Usage: !notify nick message. Will send the message when the specified nick is seen. Same as !tell',
@@ -21,7 +17,7 @@ function init(bot, action, utils, config) {
         help_on_empty: true,
     };
 
-    actions(options, notify);
+    action(options, notify);
     
     action({name: '_msg'}, handle_notify);
     action({name: '_action'}, handle_notify);
@@ -48,10 +44,10 @@ function notify(bot, from, to, text, message, utils, config) {
         pm: to === bot.nick
     };
 
-    if(config.notify_messages[notify_nick]) {
-        config.notify_messages[notify_nick].push(notify);
+    if(config[notify_nick]) {
+        config[notify_nick].push(notify);
     } else {
-        config.notify_messages[notify_nick] = [notify];
+        config[notify_nick] = [notify];
     }
 
     utils.save_config();
@@ -61,9 +57,9 @@ function notify(bot, from, to, text, message, utils, config) {
 
 function handle_notify(bot, from, to, text, message, utils, config) {
     var nick = from.toLowerCase();
-    if(config.notify_messages && config.notify_messages[nick]) {
-        config.notify_messages[nick].forEach(function(val) {
-            var ago = val.timestamp ? time_diff(val.timestamp) : '';
+    if(config[nick]) {
+        config[nick].forEach(function(val) {
+            var ago = val.timestamp ? utils.time_diff(val.timestamp) : '';
             ago = ago ? ago + ' ago' : ' just now';
             var msg = val.nick + ago + ' said: ' + val.msg;
 
@@ -75,6 +71,6 @@ function handle_notify(bot, from, to, text, message, utils, config) {
             }
         });
 
-        delete config.notify_messages[nick];
+        delete config[nick];
     }
 }
