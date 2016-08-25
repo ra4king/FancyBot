@@ -41,11 +41,11 @@ Features so far:
 - **!unquote nick quote**
   - Removes closest matching quote for nick.
 
-All action functions are provided a bot object. More information on the object can be found here: http://node-irc.readthedocs.io/
+All action functions are provided a bot object. More information on the object can be found here: http://node-irc.readthedocs.io/  
 Additional functions available:
-  bot.sayDirect(from, to, text): If the 'to' is the channel, the 'from' nick is prepended to the message text. Otherwise, it is pm-ed to the user.
-    from: the command issuer
-    to: the target of the command, which is provided to action function
-    text: the text to output
+- bot.sayDirect(from, to, text): If the 'to' is the channel, the 'from' nick is prepended to the message text. Otherwise, it is pm-ed to the user.
+  - from: the command issuer
+  - to: the target of the command, which is provided to action function
+  - text: the text to output
 
 An example of how to write an action script is provided in actions/example.js-off. All scripts ending with '.js' are automatically loaded upon startup or !reload.
