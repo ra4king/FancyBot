@@ -76,6 +76,27 @@ function load_actions() {
     var help_msgs = {};
 
     actions.on('reload', op_only(function(bot, from, to, text, message) {
+        console.log('Reloading actions.');
+
+        var old_actions = actions;
+        var old_globals = globals;
+
+        try {
+            load_actions();
+            bot.sayDirect(from, to, 'Successfully reloaded actions.');
+            console.log('Successfully reloaded actions.');
+        } catch(e) {
+            bot.sayDirect(from, to, 'Reloading attempt failed, could not reload actions: ' + e);
+            console.error('Failed to reload actions: ' + e);
+            console.error(e.stack);
+
+            actions = old_actions;
+            globals = old_globals;
+        }
+    }));
+    help_msgs['reload'] = 'Usage: !reload. Reloads all actions, op only use.';
+
+    actions.on('reloadbot', op_only(function(bot, from, to, text, message) {
         try {
             console.log('Reloading FancyBot');
 
@@ -100,7 +121,7 @@ function load_actions() {
             bot.sayDirect(from, to, 'Failed to reload the actions ' + e.message);
         }
     }));
-    help_msgs['reload'] = 'Usage: !reload. Reloads all actions, op only use.';
+    help_msgs['reloadbot'] = 'Usage: !reloadbot. Reloads the bot entireyl, op only use.';
 
     actions.on('help', function(bot, from, to, text, message) {
         if(text) {
