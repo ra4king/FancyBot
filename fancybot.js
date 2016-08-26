@@ -4,44 +4,60 @@ var EventEmitter = require('events');
 var reload = require('require-reload')(require);
 var utils;
 
-var console_log = console.log;
-var console_err = console.error;
-console.log = function(text) {
-    console_log(new Date().toUTCString() + ' - ' + text);
-}
-console.error = function(text) {
-    console_err(new Date().toUTCString() + ' - ERROR: ' + text);
+if(!global.is_reloading) {
+    var console_log = console.log;
+    var console_err = console.error;
+    console.log = function(text) {
+        console_log(new Date().toUTCString() + ' - ' + text);
+    }
+    console.error = function(text) {
+        console_err(new Date().toUTCString() + ' - ERROR: ' + text);
+    }
+    global.is_reloading = true;
 }
 
-var config;
+var configs = {};
 
-function load_config() {
+function load_config(name) {
     try {
-        config = JSON.parse(fs.readFileSync('config.json'));
+        var config = JSON.parse(fs.readFileSync('configs/' + name + '.json'));
         console.log('Loaded config');
+        return config;
     } catch(e) {
         console.error('COULD NOT LOAD CONFIG: ' + e + '\n' + e.stack);
-        config = {};
+        return {};
     }
 }
 
-var save_config_count = 0;
-var last_config_timeout = null;
-function save_config() {
-    if(save_config_count < 10) {
-        if(last_config_timeout) {
-            clearTimeout(last_config_timeout);
-            save_config_count++;
+var configs_timeout = {};
+function save_config(name, config, immediately) {
+    if(!configs_timeout[name]) {
+        configs_timeout[name] = {
+            save_config_count: 0,
+            last_config_timeout: null,
+        };
+    }
+
+    if(configs_timeout[name].save_config_count < 10 || immediately) {
+        if(configs_timeout[name].last_config_timeout) {
+            clearTimeout(configs_timeout[name].last_config_timeout);
+            configs_timeout[name].save_config_count++;
         }
 
-        last_config_timeout = setTimeout(function() {
-            save_config_count = 0;
-            last_config_timeout = null;
-            fs.writeFile('config.json', JSON.stringify(config, null, 4), function(err) {
-                if(err)
-                    console.error('ERROR: COULD NOT WRITE CONFIG!');
-            });
-        }, 1000);
+        if(immediately) {
+            fs.writeFileSync('configs/' + name + '.json', JSON.stringify(config, null, 4));
+            configs_timeout[name].save_config_count = 0;
+            configs_timeout[name].last_config_timeout = null;
+        } else {
+            configs_timeout[name].last_config_timeout = setTimeout(function() {
+                configs_timeout[name].save_config_count = 0;
+                configs_timeout[name].last_config_timeout = null;
+                fs.writeFile('configs/' + name + '.json', JSON.stringify(config, null, 4), function(err) {
+                    if(err)
+                        console.error('COULD NOT WRITE CONFIG!');
+                });
+            }, 1000);
+        }
     }
 }
 
@@ -50,8 +66,6 @@ var modules;
 var globals;
 
 function load_actions() {
-    load_config();
-
     utils = reload('./utils.js');
 
     if(modules) {
@@ -105,10 +119,16 @@ function load_actions() {
 
     actions.on('reload', op_only(function(bot, from, to, text, message) {
         try {
-            console.log('Reloading actions...');
-            load_actions();
-            console.log('Successfully reloaded the actions.');
-            bot.sayDirect(from, to, 'Successfully reloaded the actions.');
+            console.log('Reloading FancyBot');
+
+            for(var config in configs) {
+                save_config(config, configs[config], true);
+            }
+
+            bot.disconnect('Reloading...', function() {
+                global.is_reloading = true;
+                reload(process.argv[1]);
+            });
         } catch(e) {
             console.log('Failed to reload the actions ' + e + '\n' + e.stack);
             bot.sayDirect(from, to, 'Failed to reload the actions ' + e.message);
@@ -147,15 +167,17 @@ function load_actions() {
         modules[name] = reload('./actions/' + file);
 
         var action_utils = {
-            save_config: save_config,
+            save_config: function() {
+                save_config(name, configs[name]);
+            },
             globals: globals,
         };
         Object.assign(action_utils, utils);
 
-        if(!config[name]) {
-            config[name] = {};
+        if(!configs[name]) {
+            configs[name] = load_config(name);
         }
-        var action_config = config[name];
+        var action_config = configs[name];
 
         function action(options, func) {
             if(options.name[0] !== '_') {
@@ -193,11 +215,13 @@ function load_actions() {
     });
 }
 
+var bot_config = JSON.parse(fs.readFileSync('config.json'));
+
 load_actions();
 
-var name = config.bot && config.bot.name ? config.bot.name : 'FancyBot';
-var server = config.bot && config.bot.server ? config.bot.server : 'irc.freenode.net';
-var chan = config.bot && config.bot.channel ? config.bot.channel : '##FancyBot';
+var name = bot_config.name;
+var server = bot_config.server;
+var chan = bot_config.channel;
 
 var bot = new irc.Client(server, name, {
     userName: name,
@@ -218,9 +242,9 @@ bot.sayDirect = function(from, to, message) {
 bot.on('registered', function(message) {
     console.log('Successfully joined freenode!');
 
-    if(config.bot && config.bot.password) {
+    if(bot_config.password) {
         console.log('Identifying...');
-        bot.say('NickServ', 'identify ' + config.bot.password);
+        bot.say('NickServ', 'identify ' + bot_config.password);
     }
 
     actions.emit('_init', bot, message);
@@ -228,6 +252,11 @@ bot.on('registered', function(message) {
 
 bot.on('join', function(channel, nick, message) {
     if(nick === bot.nick) {
+        if(global.is_reloading) {
+            console.log('Successfully reloaded ' + name + '.');
+            bot.say(channel, 'Successfully reloaded ' + name + '.');
+        }
+
         console.log('Joined ' + channel);
         actions.emit('_joined', bot, channel, message);
     } else {
