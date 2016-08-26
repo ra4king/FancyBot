@@ -20,6 +20,7 @@ function init(action, utils, config) {
     var slap_options = {
         name: 'slap',
         help: 'Usage: !slap nick [message]. Will slap the nick with a creative message or optionally provided message.',
+        help_on_empty: true,
     };
 
     action(slap_options, slap);
