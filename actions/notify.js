@@ -21,7 +21,9 @@ function init(action, utils, config) {
     
     action({name: '_msg'}, handle_notify);
     action({name: '_action'}, handle_notify);
-    action({name: '_join'}, handle_notify);
+    action({name: '_join'}, function(bot, channel, nick, message, utils, config) {
+        handle_notify(bot, nick, channel, '', message, utils, config);
+    });
 }
 
 function notify(bot, from, to, text, message, utils, config) {
@@ -72,5 +74,6 @@ function handle_notify(bot, from, to, text, message, utils, config) {
         });
 
         delete config[nick];
+        utils.save_config();
     }
 }
