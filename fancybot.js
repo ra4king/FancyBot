@@ -367,6 +367,7 @@ bot.on('error', function(message) {
 
 process.on('exit', function() {
     console.log("Goodbye!");
+    reset_actions();
 });
 
 console.log('Joining ' + server + '...');
