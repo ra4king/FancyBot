@@ -16,73 +16,31 @@ if(!global.is_reloading) {
     global.is_reloading = true;
 }
 
+var actions;
+var modules = {};
 var configs = {};
+var globals = {};
 
-function load_config(name) {
-    try {
-        var config = JSON.parse(fs.readFileSync('configs/' + name + '.json'));
-        console.log('Loaded config');
-        return config;
-    } catch(e) {
-        console.error('COULD NOT LOAD CONFIG: ' + e + '\n' + e.stack);
-        return {};
-    }
-}
-
-var configs_timeout = {};
-function save_config(name, config, immediately) {
-    if(!configs_timeout[name]) {
-        configs_timeout[name] = {
-            save_config_count: 0,
-            last_config_timeout: null,
-        };
-    }
-
-    if(configs_timeout[name].save_config_count < 10 || immediately) {
-        if(configs_timeout[name].last_config_timeout) {
-            clearTimeout(configs_timeout[name].last_config_timeout);
-            configs_timeout[name].save_config_count++;
-        }
-
-        if(immediately) {
-            fs.writeFileSync('configs/' + name + '.json', JSON.stringify(config, null, 4));
-            configs_timeout[name].save_config_count = 0;
-            configs_timeout[name].last_config_timeout = null;
-        } else {
-            configs_timeout[name].last_config_timeout = setTimeout(function() {
-                configs_timeout[name].save_config_count = 0;
-                configs_timeout[name].last_config_timeout = null;
-                fs.writeFile('configs/' + name + '.json', JSON.stringify(config, null, 4), function(err) {
-                    if(err)
-                        console.error('COULD NOT WRITE CONFIG!');
-                });
-            }, 1000);
-        }
-    }
-}
-
-var actions = new EventEmitter();
-var modules;
-var globals;
-
-function load_actions() {
-    utils = reload('./utils.js');
-
-    if(modules) {
-        for(var module in modules) {
-            if(modules[module].destroy) {
-                try {
-                    modules[module].destroy();
-                } catch(e) {
-                    console.error('while destroying ' + module + ': ' + e);
-                }
+function reset_actions() {
+    for(var module in modules) {
+        if(modules[module].destroy) {
+            try {
+                modules[module].destroy();
+            } catch(e) {
+                console.error('while destroying ' + module + ': ' + e);
             }
         }
     }
 
-    actions.removeAllListeners();
+    actions = new EventEmitter();
     modules = {};
     globals = {};
+}
+
+function load_actions() {
+    reset_actions();
+
+    utils = reload('./utils.js');
 
     function help_on_empty(func) {
         return function(bot, from, to, text) {
@@ -125,10 +83,18 @@ function load_actions() {
                 save_config(config, configs[config], true);
             }
 
-            bot.disconnect('Reloading...', function() {
-                global.is_reloading = true;
-                reload(process.argv[1]);
-            });
+            try {
+                load_actions();
+
+                bot.disconnect('Reloading...', function() {
+                    global.is_reloading = true;
+                    reload(process.argv[1]);
+                });
+            } catch(e) {
+                bot.sayDirect(from, to, 'Reloading attempt failed, could not reload actions: ' + e);
+                console.error('Failed to reload actions: ' + e);
+                console.error(e.stack);
+            }
         } catch(e) {
             console.log('Failed to reload the actions ' + e + '\n' + e.stack);
             bot.sayDirect(from, to, 'Failed to reload the actions ' + e.message);
@@ -215,6 +181,49 @@ function load_actions() {
     });
 }
 
+function load_config(name) {
+    try {
+        var config = JSON.parse(fs.readFileSync('configs/' + name + '.json'));
+        console.log('Loaded config');
+        return config;
+    } catch(e) {
+        console.error('COULD NOT LOAD CONFIG: ' + e + '\n' + e.stack);
+        return {};
+    }
+}
+
+var configs_timeout = {};
+function save_config(name, config, immediately) {
+    if(!configs_timeout[name]) {
+        configs_timeout[name] = {
+            save_config_count: 0,
+            last_config_timeout: null,
+        };
+    }
+
+    if(configs_timeout[name].save_config_count < 10 || immediately) {
+        if(configs_timeout[name].last_config_timeout) {
+            clearTimeout(configs_timeout[name].last_config_timeout);
+            configs_timeout[name].save_config_count++;
+        }
+
+        if(immediately) {
+            fs.writeFileSync('configs/' + name + '.json', JSON.stringify(config, null, 4));
+            configs_timeout[name].save_config_count = 0;
+            configs_timeout[name].last_config_timeout = null;
+        } else {
+            configs_timeout[name].last_config_timeout = setTimeout(function() {
+                configs_timeout[name].save_config_count = 0;
+                configs_timeout[name].last_config_timeout = null;
+                fs.writeFile('configs/' + name + '.json', JSON.stringify(config, null, 4), function(err) {
+                    if(err)
+                        console.error('COULD NOT WRITE CONFIG!');
+                });
+            }, 1000);
+        }
+    }
+}
+
 var bot_config = JSON.parse(fs.readFileSync('config.json'));
 
 load_actions();
@@ -240,7 +249,7 @@ bot.sayDirect = function(from, to, message) {
 }
 
 bot.on('registered', function(message) {
-    console.log('Successfully joined freenode!');
+    console.log('Successfully joined ' + server + '!');
 
     if(bot_config.password) {
         console.log('Identifying...');
@@ -339,4 +348,4 @@ process.on('exit', function() {
     console.log("Goodbye!");
 });
 
-console.log('Joining freenode...');
+console.log('Joining ' + server + '...');
