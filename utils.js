@@ -136,7 +136,7 @@ function create_list_action(action, options) {
                             if(idx === undefined) {
                                 bot.sayDirect(from, to, 'Could not find matching ' + options.element_name + '.');
                             } else {
-                                var found = config.jokes.splice(idx, 1);
+                                var found = config[options.list_name].splice(idx, 1);
                                 utils.save_config();
 
                                 bot.sayDirect(from, to, 'Removed closest matching ' + options.element_name + ': ' + found[0]);
