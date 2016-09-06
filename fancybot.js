@@ -121,7 +121,7 @@ function load_actions() {
             bot.sayDirect(from, to, 'Failed to reload the actions ' + e.message);
         }
     }));
-    help_msgs['reloadbot'] = 'Usage: !reloadbot. Reloads the bot entireyl, op only use.';
+    help_msgs['reloadbot'] = 'Usage: !reloadbot. Reloads the bot entirely, including reconnecting to IRC, op only use.';
 
     actions.on('help', function(bot, from, to, text, message) {
         if(text) {
@@ -148,7 +148,7 @@ function load_actions() {
         var name = file.substring(0, file.length - 3);
 
         if(name === 'bot') {
-            throw 'Cannot use reserved name \'bot\'.';
+            throw new Error('Cannot use reserved name \'bot\'.');
         }
 
         modules[name] = reload('./actions/' + file);
@@ -169,7 +169,7 @@ function load_actions() {
         function action(options, func) {
             if(options.name[0] !== '_') {
                 if(actions.listenerCount(options.name) > 0) {
-                    throw 'Cannot have two user actions registered to the same name.';
+                    throw new Error('Cannot have two user actions registered to the same name.');
                 }
 
                 if(options.help_on_empty) {
@@ -182,7 +182,7 @@ function load_actions() {
                     func = no_pm(func);
                 }
 
-                help_msgs[options.name] = options.help;
+                help_msgs[options.name.toLowerCase()] = options.help;
             }
 
             var f = function(bot, from, to) {
@@ -192,7 +192,7 @@ function load_actions() {
                 }
             };
 
-            actions.on(options.name, f);
+            actions.on(options.name.toLowerCase(), f);
         }
 
         if(modules[name].init) {
@@ -323,7 +323,7 @@ bot.on('message', function(nick, to, text, message) {
 
     if(text[0] === '!') {
         var index = text.indexOf(' ');
-        var command = text.substring(1, index == -1 ? undefined : index).trim();
+        var command = text.substring(1, index == -1 ? undefined : index).trim().toLowerCase();
 
         console.log('Detected command from ' + nick + ': ' + command);
         

@@ -32,6 +32,20 @@ function init(action, utils, config) {
     });
 }
 
+function is_in_channel(users, nick) {
+    if(users[nick] !== undefined)
+        return nick;
+
+    nick = nick.toLowerCase();
+    for(var user in users) {
+        if(user.toLowerCase() === nick) {
+            return user;
+        }
+    }
+
+    return false;
+}
+
 function slap(bot, from, to, text, message, utils, config) {
     var idx = text.indexOf(' ');
     var nick = text.substring(0, idx == -1 ? undefined : idx).trim();
@@ -41,7 +55,8 @@ function slap(bot, from, to, text, message, utils, config) {
         return;
     }
 
-    if((to === bot.nick && nick !== from) || (to === bot.channel && bot.chans[to.toLowerCase()].users[nick] === undefined)) {
+    var actual_nick;
+    if((to === bot.nick && nick !== from) || (to === bot.channel && !(actual_nick = is_in_channel(bot.chans[to.toLowerCase()].users, nick)))) {
         bot.sayDirect(from, to, nick + ' is not in this channel.');
         return;
     }
@@ -51,5 +66,5 @@ function slap(bot, from, to, text, message, utils, config) {
         message = utils.choose_random(config.slap_messages);
     }
 
-    bot.action(to === bot.nick ? from : to, 'slaps ' + nick + ' ' + message);
+    bot.action(to === bot.nick ? from : to, 'slaps ' + actual_nick + ' ' + message);
 }
