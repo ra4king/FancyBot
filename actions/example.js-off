@@ -1,6 +1,7 @@
 // Must export an init method
 module.exports = {
-    init: init
+    init: init,
+    destroy: destroy, // optional destroy method
 };
 
 /*
@@ -48,8 +49,13 @@ function init(action, utils, config) {
         config.count = 0;
 }
 
+function destroy() {
+    // perform any clean up
+}
+
 function example(bot, from, to, text, message, utils, config) {
     config.count++;
+    utils.save_config();
     
     bot.sayDirect(from, to, 'Example command usage count: ' + config.count + '. Supplied arguments: ' + text);
 }
