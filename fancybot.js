@@ -168,7 +168,7 @@ function load_actions() {
 
         function action(options, func) {
             if(options.name[0] !== '_') {
-                if(actions.listenerCount(options.name) > 0) {
+                if(actions.listenerCount(options.name.toLowerCase()) > 0) {
                     throw new Error('Cannot have two user actions registered to the same name.');
                 }
 
