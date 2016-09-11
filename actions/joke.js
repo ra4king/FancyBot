@@ -10,6 +10,7 @@ function init(action, utils, config) {
         help: 'Displays joke or manage list of jokes.',
         remove_closest_match: true,
         disable_list: true,
+        confirm_msg: 'LOL!',
         on_empty: joke,
     };
     utils.create_list_action(action, list_options);

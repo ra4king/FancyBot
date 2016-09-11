@@ -54,6 +54,7 @@ Parameters:
         disable_list: boolean, 'list' subcommand disabled.
         remove_closest_match: boolean, 'remove' will best matching element, not exact match.
         op_only: boolean, only ops may use function.
+        confirm_msg: string, message to display on confirmation.
         split_token: string or regex, token for splitting command text. When unset, no splitting is done.
         on_empty: function, to run when no subcommand is given.
     }
@@ -104,7 +105,7 @@ function create_list_action(action, options) {
 
                 utils.save_config();
 
-                bot.sayDirect(from, to, 'Ok.');
+                bot.sayDirect(from, to, options.confirm_msg ? options.confirm_msg : 'Ok.');
             } else if(subcommand === 'remove') {
                 if(!rest) {
                     bot.sayDirect(from, to, 'Usage: !' + options.name + ' remove ' + options.element_name + '. Will remove closest match (case INsensitive).');
