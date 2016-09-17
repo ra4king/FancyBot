@@ -111,11 +111,10 @@ function no_command(bot, from, to, text, message, utils, config) {
                         req.end();
                     } else if(Math.floor(head_response.statusCode / 100) == 3) {
                         console.log('Got redirect (' + head_response.statusCode + ') for ' + url);
-                        var r = /^(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?$/;
-                        if(head_response.headers.location && r.test(head_response.headers.location)) {
+                        if(head_response.headers.location && new RegExp(url_regex).test(head_response.headers.location)) {
                             get_title(head_response.headers.location);
                         } else {
-                            console.log('Did not receive valid redirect for ' + url + ': ' + head_response.headers.location);
+                            get_title(parsed_url.protocol + '//' + parsed_url.hostname + head_response.headers.location);
                         }
                     } else {
                         console.log('Got status ' + head_response.statusCode + ' for ' + url);
