@@ -117,12 +117,12 @@ function generateHTML(date_string, lines) {
                 return;
             }
 
-            html += '       <div class="row"><span class="datestring">' + htmlencode.htmlEncode(match[1]) + '</span>  ';
+            html += '       <div class="row"><div class="datestring">' + htmlencode.htmlEncode(match[1]) + '</div>';
 
             var msg_class = 'msg';
 
             if(match[2]) {
-                html += '<span class="nick">' + htmlencode.htmlEncode(match[2]) + '</span>';
+                html += '<div class="nick">' + htmlencode.htmlEncode(match[2]) + '</div>';
             } else {
                 msg_class = 'event';
             }
@@ -155,7 +155,7 @@ function generateHTML(date_string, lines) {
                 line += htmlencode.htmlEncode(msg);
             }
 
-            html += '<span class="' + msg_class + '">' + line + '</span></div>\n';
+            html += '<div class="' + msg_class + '">' + line + '</div></div>\n';
         });
         html += '       <hr />\n';
         html += prev_next_date_html;

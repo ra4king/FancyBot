@@ -5,6 +5,11 @@ body {
 	font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace;
 }
 
+h1 {
+	min-width: 500px;
+	white-space: nowrap;
+}
+
 a {
 	color: #68A4DE;
 	text-decoration: none;
@@ -28,10 +33,16 @@ a:hover {
 	text-align: left;
 }
 
-#next_date { width: 33%;
+#next_date {
+	width: 33%;
 	display: inline-block;
 	float: right;
 	text-align: right;
+}
+
+.row {
+	white-space: nowrap;
+	clear: left;
 }
 
 .row:nth-child(odd) {
@@ -40,30 +51,30 @@ a:hover {
 
 .datestring {
 	vertical-align: top;
-	display: inline-block;
-	min-width: 273px;
-	max-width: 20%;
+	min-width: 280px;
+	width: 280px;
+	float: left;
 }
 
 .nick {
 	color: #DC143C;
-	display: inline-block;
 	text-align: right;
 	vertical-align: top;
 	min-width: 160px;
-	max-width: 10%;
+	width: 160px;
 	padding-right: 10px;
+	float: left;
 }
 
 .msg {
-	display: inline-block;
 	vertical-align: top;
+	margin-left: 450px;
 	color: #FFFFFF;
-	max-width: 70%;
+	white-space: pre;
 }
 
 .event {
-	display: inline-block;
+	vertical-align: top;
+	margin-left: 280px;
 	color: #BDB76B;
-	max-width: 80%;
 }

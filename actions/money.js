@@ -24,8 +24,6 @@ function money(bot, from, to, text, message) {
     var fromCurr = result[2];
     var toCurr = result[3];
 
-    console.log(value + ' ' + fromCurr + ' to ' + toCurr);
-
     if(fromCurr === toCurr) {
         bot.sayDirect(from, to, 'date = ' + new Date().toUTCString() + ', ' + value + ' ' + fromCurr + ' = ' + value + ' ' + toCurr);
     }

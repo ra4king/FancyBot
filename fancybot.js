@@ -4,7 +4,7 @@ var EventEmitter = require('events');
 var reload = require('require-reload')(require);
 var utils;
 
-if(!global.is_reloading) {
+if(!global.console_redirected) {
     var console_log = console.log;
     var console_err = console.error;
     console.log = function(text) {
@@ -13,7 +13,7 @@ if(!global.is_reloading) {
     console.error = function(text) {
         console_err(new Date().toUTCString() + ' - ERROR: ' + text);
     }
-    global.is_reloading = true;
+    global.console_redirected = true;
 }
 
 var actions;
@@ -98,7 +98,7 @@ function load_actions() {
 
     actions.on('reloadbot', op_only(function(bot, from, to, text, message) {
         try {
-            console.log('Reloading FancyBot');
+            console.log('Reloading ' + bot.nick);
 
             for(var config in configs) {
                 save_config(config, configs[config], true);
@@ -261,6 +261,13 @@ var bot = new irc.Client(server, name, {
 });
 bot.channel = chan;
 
+function check_nick() {
+    if(bot.nick != name) {
+        bot.send('NICK', name);
+        setTimeout(check_nick, 2000);
+    }
+}
+
 bot.sayDirect = function(from, to, message) {
     if(to === bot.nick) {
         bot.say(from, message);
@@ -270,6 +277,8 @@ bot.sayDirect = function(from, to, message) {
 }
 
 bot.on('registered', function(message) {
+    check_nick();
+
     console.log('Successfully joined ' + server + '!');
 
     if(bot_config.password) {
@@ -281,10 +290,13 @@ bot.on('registered', function(message) {
 });
 
 bot.on('join', function(channel, nick, message) {
+    check_nick();
+
     if(nick === bot.nick) {
         if(global.is_reloading) {
             console.log('Successfully reloaded ' + name + '.');
             bot.say(channel, 'Successfully reloaded ' + name + '.');
+            global.is_reloading = false;
         }
 
         console.log('Joined ' + channel);
@@ -295,23 +307,27 @@ bot.on('join', function(channel, nick, message) {
 });
 
 bot.on('part', function(channel, nick, reason, message) {
+    check_nick();
     actions.emit('_part', bot, channel, nick, reason, message);
 });
 
 bot.on('quit', function(nick, reason, channels, message) {
+    check_nick();
     actions.emit('_quit', bot, bot.channel, nick, reason, message);
 });
 
 bot.on('kick', function(channel, nick, by, reason ,message) {
+    check_nick();
     actions.emit('_kick', bot, channel, nick, by, reason, message);
 });
 
 bot.on('nick', function(oldnick, newnick, channels, message) {
-    if(bot.nick != name) {
-        bot.send('NICK', name);
-    }
-
     if(newnick === name) {
+        if(bot_config.password) {
+            console.log('Identifying...');
+            bot.say('NickServ', 'identify ' + bot_config.password);
+        }
+        
         actions.emit('_init', bot, message);
     }
 
@@ -319,13 +335,15 @@ bot.on('nick', function(oldnick, newnick, channels, message) {
 });
 
 bot.on('message', function(nick, to, text, message) {
+    check_nick();
+
     actions.emit('_msg', bot, nick, to, text, message);
 
     if(text[0] === '!') {
         var index = text.indexOf(' ');
         var command = text.substring(1, index == -1 ? undefined : index).trim().toLowerCase();
 
-        console.log('Detected command from ' + nick + ': ' + command);
+        console.log('Detected command from ' + nick + ': ' + text);
         
         if(command[0] != '_' && actions.emit(command, bot, nick, to, index == -1 ? '' : text.substring(index).trim(), message)) {
             return;
@@ -338,6 +356,8 @@ bot.on('message', function(nick, to, text, message) {
 });
 
 bot.on('notice', function(nick, to, text, message) {
+    check_nick();
+
     if(to === bot.nick) {
         console.log('NOTICE: -' + (nick === null ? 'Server' : nick) + '- ' + text);
     }
@@ -346,18 +366,23 @@ bot.on('notice', function(nick, to, text, message) {
 });
 
 bot.on('selfMessage', function(to, text) {
+    check_nick();
     actions.emit('_self', bot, to, text);
+    console.log(bot.nick + ' ' + 'to ' + to + ': ' + text);
 });
 
 bot.on('action', function(nick, to, text, message) {
+    check_nick();
     actions.emit('_action', bot, nick, to, text, message);
 });
 
 bot.on('+mode', function(channel, by, mode, argument, message) {
+    check_nick();
     actions.emit('_mode', bot, channel, by, '+' + mode, argument, message);
 });
 
 bot.on('-mode', function(channel, by, mode, argument, message) {
+    check_nick();
     actions.emit('_mode', bot, channel, by, '-' + mode, argument, message);
 });
 

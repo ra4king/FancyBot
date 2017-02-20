@@ -28,8 +28,6 @@ function convert(bot, from, to, text, message, utils, config) {
     var convertFrom = result[2];
     var convertTo = result[3];
 
-    console.log(value + ' ' + convertFrom + ' to ' + convertTo);
-
     var foundFrom = null;
     var foundFromBase = null;
     var foundToBase = null;
@@ -71,8 +69,6 @@ function convert(bot, from, to, text, message, utils, config) {
         }
     }
 
-    // console.log(toString(foundFrom) + ' ' + toString(foundFromBase) + ' ' + toString(foundToBase) + ' ' + toString(foundTo));
-
     function unsupported() {
         bot.sayDirect(from, to, 'Unsupported conversion');
     }
@@ -86,10 +82,8 @@ function convert(bot, from, to, text, message, utils, config) {
         if(typeof factor === 'function') {
             return factor(value, reversed);
         } else if(reversed) {
-            console.log('applying 1/' + factor + ' to ' + value);
             return value / factor;
         } else {
-            console.log('applying ' + factor + ' to ' + value);
             return value * factor;
         }
     }
