@@ -261,12 +261,27 @@ var bot = new irc.Client(server, name, {
 });
 bot.channel = chan;
 
-function check_nick() {
-    if(bot.nick != name) {
-        bot.send('NICK', name);
-        setTimeout(check_nick, 2000);
+var check_nick = (function() {
+    var lastCall = null;
+    var retryCount = 0;
+    return function() {
+        if(lastCall) {
+            if(++retryCount >= 3) {
+                return;
+            } else {
+                clearTimeout(lastCall);
+                lastCall = null;
+            }
+        }
+
+        if(bot.nick != name) {
+            bot.send('NICK', name);
+            lastCall = setTimeout(check_nick, 2000);
+        } else {
+            retryCount = 0;
+        }
     }
-}
+})();
 
 bot.sayDirect = function(from, to, message) {
     if(to === bot.nick) {
