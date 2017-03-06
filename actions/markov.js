@@ -139,7 +139,7 @@ function markov(bot, from, to, text) {
         if(!mappings[keyString])
             break;
 
-        let tries = 3;
+        let tries = 5;
         do {
             let nextIdx = Math.floor(Math.random() * mappings[keyString].length);
             var piece = mappings[keyString][nextIdx];
