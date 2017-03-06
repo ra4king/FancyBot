@@ -45,7 +45,7 @@ function init(action, utils, config) {
 
                 if(lastPieces.length == n) {
                     var key = JSON.stringify(lastPieces);
-                    var value = piece;
+                    var value = piece.replace(/[^a-zA-Z0-9'",;\.]/g, '');
 
                     if(firstRun) {
                         if(mappings[null]) {
@@ -91,7 +91,7 @@ function capitalize(prev, str) {
 function markov(bot, from, to, text, message, utils, config) {
     if(text) {
         switch(text) {
-            case 'print-stats':
+            case 'stats':
                 bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
                 break;
             default:
@@ -119,6 +119,9 @@ function markov(bot, from, to, text, message, utils, config) {
 
     var prev = keyArray[keyArray.length - 1];
     do {
+        if(!mappings[keyString])
+            break;
+
         let tries = 3;
         do {
             let nextIdx = Math.floor(Math.random() * mappings[keyString].length);
