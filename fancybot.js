@@ -156,6 +156,9 @@ function load_actions() {
         var action_utils = {
             save_config: save_config.bind(null, name, configs[name]),
             globals: globals,
+            get_bot: function() {
+                return bot;
+            }
         };
         Object.assign(action_utils, utils);
 
@@ -194,8 +197,12 @@ function load_actions() {
         }
 
         if(modules[name].init) {
-            modules[name].init(action, action_utils, action_config);
-            console.log('Loaded ' + name);
+            try {
+                console.log('Loading ' + name);
+                modules[name].init(action, action_utils, action_config);
+            } catch(e) {
+                console.error('Error loading ' + name + ': ' + e);
+            }
         }
     });
 }
@@ -282,11 +289,16 @@ var check_nick = (function() {
     }
 })();
 
-bot.sayDirect = function(from, to, message) {
+bot.sayDirect = function(from, to, address, message) {
+    if(message === undefined) {
+        message = address;
+        address = true;
+    }
+
     if(to === bot.nick) {
         bot.say(from, message);
     } else {
-        bot.say(to, from + ': ' + message);
+        bot.say(to, (address ? (from + ': ') : '') + message);
     }
 }
 

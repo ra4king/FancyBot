@@ -10,6 +10,8 @@ var keyCount = 0;
 var lineCount = 0;
 var characterCount = 0;
 
+var lastTimeout = null;
+
 function init(action, utils, config) {
     var options = {
         name: 'markov',
@@ -76,10 +78,23 @@ function init(action, utils, config) {
     });
 
     keyCount = Object.keys(mappings).length;
+
+    function sayRandomly() {
+        var bot = utils.get_bot();
+        markov(bot, '', bot.channel, '');
+
+        var milliseconds = Math.floor(Math.random() * 3 * 60 * 60 * 1000) + 30 * 60 * 1000;
+        console.log('markov: waiting for ' + milliseconds + ' ms');
+
+        lastTimeout = setTimeout(sayRandomly, milliseconds);
+    }
+
+    lastTimeout = setTimeout(sayRandomly, 10000);
 }
 
 function destroy() {
     mappings = {};
+    clearTimeout(lastTimeout);
 }
 
 function capitalize(prev, str) {
@@ -90,7 +105,7 @@ function capitalize(prev, str) {
     }
 }
 
-function markov(bot, from, to, text, message, utils, config) {
+function markov(bot, from, to, text) {
     if(text) {
         switch(text) {
             case 'stats':
@@ -141,5 +156,5 @@ function markov(bot, from, to, text, message, utils, config) {
         keyString = JSON.stringify(keyArray);
     } while(piece != null);
 
-    bot.sayDirect(from, to, message.join(' '));
+    bot.sayDirect(from, to, false, message.join(' '));
 }
