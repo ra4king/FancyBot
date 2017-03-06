@@ -43,9 +43,11 @@ function init(action, utils, config) {
                 if(!piece)
                     return;
 
+                piece = piece.replace(/[^a-zA-Z0-9'",;\.]/g, '');
+
                 if(lastPieces.length == n) {
                     var key = JSON.stringify(lastPieces);
-                    var value = piece.replace(/[^a-zA-Z0-9'",;\.]/g, '');
+                    var value = piece;
 
                     if(firstRun) {
                         if(mappings[null]) {
