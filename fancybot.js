@@ -154,9 +154,7 @@ function load_actions() {
         modules[name] = reload('./actions/' + file);
 
         var action_utils = {
-            save_config: function() {
-                save_config(name, configs[name]);
-            },
+            save_config: save_config.bind(null, name, configs[name]),
             globals: globals,
         };
         Object.assign(action_utils, utils);
@@ -266,12 +264,12 @@ var check_nick = (function() {
     var retryCount = 0;
     return function() {
         if(lastCall) {
-            if(++retryCount >= 3) {
-                return;
-            } else {
+            if(++retryCount < 3) {
                 clearTimeout(lastCall);
-                lastCall = null;
+                lastCall = setTimeout(check_nick, 2000);
             }
+
+            return;
         }
 
         if(bot.nick != name) {
@@ -279,6 +277,7 @@ var check_nick = (function() {
             lastCall = setTimeout(check_nick, 2000);
         } else {
             retryCount = 0;
+            lastCall = null;
         }
     }
 })();
