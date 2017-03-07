@@ -105,36 +105,23 @@ function capitalize(prev, str) {
     }
 }
 
-function markov(bot, from, to, text) {
-    if(text) {
-        switch(text) {
-            case 'stats':
-                bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
-                break;
-            default:
-                bot.sayDirect(from, to, 'Did not understand command ' + text);
-                return;
-        }
-
-        return;
+function generateMessage(min_length, initialInputs) {
+    if(initialInputs) {
+        var keyArray = initialInputs.map((s) => s.toLowerCase());
+        var keyString = JSON.stringify(keyArray);
+    } else {
+        var initialIdx = Math.floor(Math.random() * mappings[null].length);
+        var keyString = mappings[null][initialIdx];
+        var keyArray = JSON.parse(keyString);
     }
 
-    var initialIdx = Math.floor(Math.random() * mappings[null].length);
-    var keyString = mappings[null][initialIdx];
-    var keyArray = JSON.parse(keyString);
+    var prev = null;
+    var message = keyArray.map((piece) => {
+        var s = capitalize(prev, piece);
+        prev = piece;
+        return s;
+    });
 
-    {
-        let prev = null;
-        var message = keyArray.map((piece) => {
-            var s = capitalize(prev, piece);
-            prev = piece;
-            return s;
-        });
-    }
-
-    const min_length = 6;
-
-    var prev = keyArray[keyArray.length - 1];
     do {
         if(!mappings[keyString])
             break;
@@ -143,7 +130,7 @@ function markov(bot, from, to, text) {
         do {
             let nextIdx = Math.floor(Math.random() * mappings[keyString].length);
             var piece = mappings[keyString][nextIdx];
-        } while(--tries > 0 && message.length < min_length && piece == null);
+        } while(piece == null && --tries > 0 && message.length < min_length);
 
         if(piece == null) {
             break;
@@ -153,8 +140,49 @@ function markov(bot, from, to, text) {
 
         keyArray.shift();
         keyArray.push(piece);
+
+        prev = piece;
         keyString = JSON.stringify(keyArray);
     } while(piece != null);
+
+    return message;
+}
+
+function markov(bot, from, to, text) {
+    var initialInputs = null;
+
+    if(text) {
+        let split = text.split(' ');
+        switch(split[0]) {
+            case 'stats':
+                bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
+                return;
+            case 'generate':
+                if(split.length != 3) {
+                    bot.sayDirect(from, to, 'I need exactly 2 words to generate a message.');
+                    return;
+                }
+
+                initialInputs = split.slice(1);
+                break;
+            default:
+                bot.sayDirect(from, to, 'Did not understand command ' + text);
+                return;
+        }
+    }
+
+    const min_length = 6;
+
+    var message = [];
+    do {
+        message = message.concat(generateMessage(min_length - message.length, initialInputs));
+        initialInputs = null;
+
+        let last = message[message.length - 1];
+        if(last && last.charAt(last.length - 1) != '.') {
+            message[message.length - 1] += '.';
+        }
+    } while(message.length < min_length);
 
     bot.sayDirect(from, to, false, message.join(' '));
 }
