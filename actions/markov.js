@@ -15,7 +15,7 @@ var lastTimeout = null;
 function init(action, utils, config) {
     var options = {
         name: 'markov',
-        help: 'Usage: !markov',
+        help: 'Usage: !markov [stats | initial inputs]. With no arguments, it generates a random message.',
     };
 
     action(options, markov);
@@ -152,22 +152,19 @@ function markov(bot, from, to, text) {
     var initialInputs = null;
 
     if(text) {
-        let split = text.split(' ');
-        switch(split[0]) {
+        switch(text) {
             case 'stats':
                 bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
                 return;
-            case 'generate':
-                if(split.length != 3) {
-                    bot.sayDirect(from, to, 'I need exactly 2 words to generate a message.');
+            default:
+                let split = text.split(' ');
+
+                if(split.length != n) {
+                    bot.sayDirect(from, to, 'I need exactly ' + n + ' words to generate a message.');
                     return;
                 }
 
-                initialInputs = split.slice(1);
-                break;
-            default:
-                bot.sayDirect(from, to, 'Did not understand command ' + text);
-                return;
+                initialInputs = split;
         }
     }
 
