@@ -10,6 +10,8 @@ var keyCount = 0;
 var lineCount = 0;
 var characterCount = 0;
 
+var annoyingModeRate = 0;
+
 var lastTimeout = null;
 
 function init(action, utils, config) {
@@ -19,6 +21,44 @@ function init(action, utils, config) {
     };
 
     action(options, markov);
+
+    action({ name: 'markovset', op_only: true }, function(bot, from, to, text) {
+        if(!text) {
+            bot.sayDirect(from, to, 'Give me a rate from 0 to 100');
+            return;
+        }
+
+        annoyingModeRate = parseInt(text);
+        bot.sayDirect(from, to, 'Annoying mode set with a rate of ' + annoyingModeRate + '%');
+    });
+
+    action({ name: '_msg' }, function(bot, from, to, text) {
+        if(to !== bot.nick && text[0] !== '-') {
+            createMapping(text);
+
+            if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
+                let split = text.split(' ');
+                let idx = Math.floor(Math.random() * (split.length - n + 1));
+                let input = split.slice(idx, idx + n);
+                var message = generateMarkov(input);
+                bot.sayDirect(from, to, false, message.join(' '));
+            }
+        }
+    });
+
+    action({ name: '_action' }, function(bot, from, to, text) {
+        if(to !== bot.nick) {
+            createMapping(from + ' ' + text);
+
+            if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
+                let split = text.split(' ');
+                let idx = Math.floor(Math.random() * (split.length - n + 1));
+                let input = split.slice(idx, idx + n);
+                var message = generateMarkov(input);
+                bot.sayDirect(from, to, false, message.join(' '));
+            }
+        }
+    });
 
     const fs = require('fs');
 
@@ -34,46 +74,7 @@ function init(action, utils, config) {
                 return;
             }
 
-            var text = match[3];
-            lineCount++;
-            characterCount += text.length;
-
-            var firstRun = true;
-            var lastPieces = [];
-            text.split(' ').forEach((piece) => {
-                piece = piece.trim().toLowerCase();
-                if(!piece)
-                    return;
-
-                piece = piece.replace(/[^a-zA-Z0-9'",;\.]/g, '');
-
-                if(lastPieces.length == n) {
-                    var key = JSON.stringify(lastPieces);
-                    var value = piece;
-
-                    if(firstRun) {
-                        if(mappings[null]) {
-                            mappings[null].push(key);
-                        } else {
-                            mappings[null] = [key];
-                        }
-
-                        firstRun = false;
-                    }
-
-                    if(mappings[key]) {
-                        mappings[key].push(value);
-                    } else {
-                        mappings[key] = [value];
-                    }
-
-                    lastPieces.shift();
-                }
-
-                lastPieces.push(piece);
-            });
-
-            mappings[JSON.stringify(lastPieces)] = [null];
+            createMapping(match[3]);
         });
     });
 
@@ -97,6 +98,51 @@ function destroy() {
     clearTimeout(lastTimeout);
 }
 
+function cleanString(str) {
+    return str.trim().toLowerCase().replace(/[^a-zA-Z0-9,\.]/g, '');
+}
+
+function createMapping(text) {
+    lineCount++;
+    characterCount += text.length;
+
+    var firstRun = true;
+    var lastPieces = [];
+    text.split(' ').forEach((piece) => {
+        piece = cleanString(piece);
+
+        if(!piece)
+            return;
+
+        if(lastPieces.length == n) {
+            var key = JSON.stringify(lastPieces);
+            var value = piece;
+
+            if(firstRun) {
+                if(mappings[null]) {
+                    mappings[null].push(key);
+                } else {
+                    mappings[null] = [key];
+                }
+
+                firstRun = false;
+            }
+
+            if(mappings[key]) {
+                mappings[key].push(value);
+            } else {
+                mappings[key] = [value];
+            }
+
+            lastPieces.shift();
+        }
+
+        lastPieces.push(piece);
+    });
+
+    mappings[JSON.stringify(lastPieces)] = [null];
+}
+
 function capitalize(prev, str) {
     if(str && (prev == null || prev.charAt(prev.length - 1) == '.')) {
         return str.substring(0,1).toUpperCase() + str.substring(1);
@@ -107,7 +153,7 @@ function capitalize(prev, str) {
 
 function generateMessage(min_length, initialInputs) {
     if(initialInputs) {
-        var keyArray = initialInputs.map((s) => s.toLowerCase());
+        var keyArray = initialInputs.map(cleanString);
         var keyString = JSON.stringify(keyArray);
     } else {
         var initialIdx = Math.floor(Math.random() * mappings[null].length);
@@ -148,26 +194,7 @@ function generateMessage(min_length, initialInputs) {
     return message;
 }
 
-function markov(bot, from, to, text) {
-    var initialInputs = null;
-
-    if(text) {
-        switch(text) {
-            case 'stats':
-                bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
-                return;
-            default:
-                let split = text.split(' ');
-
-                if(split.length != n) {
-                    bot.sayDirect(from, to, 'I need exactly ' + n + ' words to generate a message.');
-                    return;
-                }
-
-                initialInputs = split;
-        }
-    }
-
+function generateMarkov(initialInputs) {
     const min_length = 6;
 
     var message = [];
@@ -181,5 +208,29 @@ function markov(bot, from, to, text) {
         }
     } while(message.length < min_length);
 
+    return message;
+}
+
+function markov(bot, from, to, text) {
+    var initialInputs = null;
+
+    if(text) {
+        var split = text.split(' ');
+
+        switch(split[0]) {
+            case 'stats':
+                bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
+                return;
+            default:
+                if(split.length != n) {
+                    bot.sayDirect(from, to, 'I need exactly ' + n + ' words to generate a message.');
+                    return;
+                }
+
+                initialInputs = split;
+        }
+    }
+
+    var message = generateMarkov(initialInputs);
     bot.sayDirect(from, to, false, message.join(' '));
 }
