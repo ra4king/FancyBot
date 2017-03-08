@@ -47,7 +47,7 @@ function init(action, utils, config) {
     });
 
     action({ name: '_action' }, function(bot, from, to, text) {
-        if(to !== bot.nick) {
+        if(to !== bot.nick && !text.startsWith('slaps')) {
             createMapping(from + ' ' + text);
 
             if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
@@ -102,6 +102,14 @@ function cleanString(str) {
     return str.trim().toLowerCase().replace(/[^a-zA-Z0-9,\.]/g, '');
 }
 
+function addMapping(key, value) {
+    if(mappings[key]) {
+        mappings[key].push(value);
+    } else {
+        mappings[key] = [value];
+    }
+}
+
 function createMapping(text) {
     lineCount++;
     characterCount += text.length;
@@ -119,20 +127,11 @@ function createMapping(text) {
             var value = piece;
 
             if(firstRun) {
-                if(mappings[null]) {
-                    mappings[null].push(key);
-                } else {
-                    mappings[null] = [key];
-                }
-
+                addMapping(null, key);
                 firstRun = false;
             }
 
-            if(mappings[key]) {
-                mappings[key].push(value);
-            } else {
-                mappings[key] = [value];
-            }
+            addMapping(key, value);
 
             lastPieces.shift();
         }
@@ -140,7 +139,7 @@ function createMapping(text) {
         lastPieces.push(piece);
     });
 
-    mappings[JSON.stringify(lastPieces)] = [null];
+    addMapping(JSON.stringify(lastPieces), null);
 }
 
 function capitalize(prev, str) {
@@ -178,7 +177,14 @@ function generateMessage(min_length, initialInputs) {
             var piece = mappings[keyString][nextIdx];
         } while(piece == null && --tries > 0 && message.length < min_length);
 
-        if(piece == null) {
+        if(!piece) {
+            let idx = mappings[keyString].findIndex((str) => !!str);
+            if(idx != -1) {
+                piece = mappings[keyString][idx];
+            }
+        }
+
+        if(!piece) {
             break;
         }
 
