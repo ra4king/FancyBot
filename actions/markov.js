@@ -32,31 +32,27 @@ function init(action, utils, config) {
         bot.sayDirect(from, to, 'Annoying mode set with a rate of ' + annoyingModeRate + '%');
     });
 
+    function onMessage(bot, from, to, text) {
+        createMapping(text);
+
+        if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
+            let split = text.split(' ');
+            let idx = Math.floor(Math.random() * (split.length - n + 1));
+            let input = split.slice(idx, idx + n);
+            var message = generateMarkov(input);
+            setTimeout(() => bot.sayDirect(from, to, false, message.join(' ')), 700);
+        }
+    }
+
     action({ name: '_msg' }, function(bot, from, to, text) {
         if(to !== bot.nick && text[0] !== '-') {
-            createMapping(text);
-
-            if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
-                let split = text.split(' ');
-                let idx = Math.floor(Math.random() * (split.length - n + 1));
-                let input = split.slice(idx, idx + n);
-                var message = generateMarkov(input);
-                bot.sayDirect(from, to, false, message.join(' '));
-            }
+            onMessage(bot, from, to, text);
         }
     });
 
     action({ name: '_action' }, function(bot, from, to, text) {
         if(to !== bot.nick && !text.startsWith('slaps')) {
-            createMapping(from + ' ' + text);
-
-            if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
-                let split = text.split(' ');
-                let idx = Math.floor(Math.random() * (split.length - n + 1));
-                let input = split.slice(idx, idx + n);
-                var message = generateMarkov(input);
-                bot.sayDirect(from, to, false, message.join(' '));
-            }
+            onMessage(bot, from, to, from + ' ' + text);
         }
     });
 
@@ -176,13 +172,6 @@ function generateMessage(min_length, initialInputs) {
             let nextIdx = Math.floor(Math.random() * mappings[keyString].length);
             var piece = mappings[keyString][nextIdx];
         } while(piece == null && --tries > 0 && message.length < min_length);
-
-        if(!piece) {
-            let idx = mappings[keyString].findIndex((str) => !!str);
-            if(idx != -1) {
-                piece = mappings[keyString][idx];
-            }
-        }
 
         if(!piece) {
             break;
