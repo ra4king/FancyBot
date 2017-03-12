@@ -5,22 +5,26 @@ module.exports = {
 
 const n = 2;
 
-var mappings = {};
+var allMappings = {};
 var keyCount = 0;
 var lineCount = 0;
 var characterCount = 0;
 
-var annoyingModeRate = 0;
+var lastUserMappings = {}
+var lastUserName = null;
 
 var lastTimeout = null;
 
 function init(action, utils, config) {
-    var options = {
-        name: 'markov',
-        help: 'Usage: !markov [stats | initial inputs]. With no arguments, it generates a random message.',
-    };
+    config.annoyingModeRate = config.annoyingModeRate || 0;
+    utils.save_config();
 
-    action(options, markov);
+    allMappings = generateForUser(null);
+
+    action({
+            name: 'markov',
+            help: 'Usage: !markov [stats | initial inputs]. With no arguments, it generates a random message.',
+        }, markov);
 
     action({ name: 'markovset', op_only: true }, function(bot, from, to, text) {
         if(!text) {
@@ -28,18 +32,49 @@ function init(action, utils, config) {
             return;
         }
 
-        annoyingModeRate = parseInt(text);
-        bot.sayDirect(from, to, 'Annoying mode set with a rate of ' + annoyingModeRate + '%');
+        config.annoyingModeRate = parseInt(text);
+        utils.save_config();
+        bot.sayDirect(from, to, 'Annoying mode set with a rate of ' + config.annoyingModeRate + '%');
     });
 
-    function onMessage(bot, from, to, text) {
-        createMapping(text);
+    action({
+            name: 'speaklike',
+            help: 'Usage: !speaklike username. Give it a username and it will speak like them.'
+        },
+        function(bot, from, to, text) {
+            if(!text) {
+                bot.sayDirect(from, to, 'Give me a username!');
+                return;
+            }
 
-        if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < annoyingModeRate) {
+            if(text != lastUserName) {
+                bot.sayDirect(from, to, 'Analyzing logs of ' + text + '...');
+                var mappings = generateForUser(text);
+                if(Object.keys(mappings).length != 0) {
+                    lastUserName = text;
+                    lastUserMappings = mappings;
+                } else {
+                    bot.sayDirect(from, to, 'No logs found for ' + text + '.');
+                    return;
+                }
+            }
+
+            var message = generateMarkov(lastUserMappings, null);
+            bot.sayDirect(from, to, false, message.join(' '))
+        });
+
+    function onMessage(bot, from, to, text) {
+        createMapping(allMappings, text);
+
+        if(from == lastUserName) {
+            createMapping(lastUserMappings, text);
+        }
+
+        if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < config.annoyingModeRate) {
             let split = text.split(' ');
             let idx = Math.floor(Math.random() * (split.length - n + 1));
             let input = split.slice(idx, idx + n);
-            var message = generateMarkov(input);
+            var message = generateMarkov(allMappings, input);
             setTimeout(() => bot.sayDirect(from, to, false, message.join(' ')), 700);
         }
     }
@@ -56,31 +91,11 @@ function init(action, utils, config) {
         }
     });
 
-    const fs = require('fs');
-
-    fs.readdirSync('logs/').forEach((file) => {
-        if(!file.endsWith('.log')) return;
-
-        var contents = fs.readFileSync('logs/' + file).toString().split('\n');
-
-        contents.forEach((line) => {
-            var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
-            var match = msg_regex.exec(line);
-            if(!match || !match[2]) {
-                return;
-            }
-
-            createMapping(match[3]);
-        });
-    });
-
-    keyCount = Object.keys(mappings).length;
-
     function sayRandomly() {
         var bot = utils.get_bot();
         markov(bot, '', bot.channel, '');
 
-        var milliseconds = Math.floor(Math.random() * 3 * 60 * 60 * 1000) + 30 * 60 * 1000;
+        var milliseconds = Math.floor(Math.random() * 4 * 60 * 60 * 1000) + 2 * 60 * 60 * 1000;
         console.log('markov: waiting for ' + milliseconds + ' ms');
 
         lastTimeout = setTimeout(sayRandomly, milliseconds);
@@ -90,7 +105,8 @@ function init(action, utils, config) {
 }
 
 function destroy() {
-    mappings = {};
+    allMappings = {};
+    lastUserMappings = {};
     clearTimeout(lastTimeout);
 }
 
@@ -98,7 +114,7 @@ function cleanString(str) {
     return str.trim().toLowerCase().replace(/[^a-zA-Z0-9,\.]/g, '');
 }
 
-function addMapping(key, value) {
+function addMapping(mappings, key, value) {
     if(mappings[key]) {
         mappings[key].push(value);
     } else {
@@ -106,10 +122,7 @@ function addMapping(key, value) {
     }
 }
 
-function createMapping(text) {
-    lineCount++;
-    characterCount += text.length;
-
+function createMapping(mappings, text) {
     var firstRun = true;
     var lastPieces = [];
     text.split(' ').forEach((piece) => {
@@ -123,11 +136,11 @@ function createMapping(text) {
             var value = piece;
 
             if(firstRun) {
-                addMapping(null, key);
+                addMapping(mappings, null, key);
                 firstRun = false;
             }
 
-            addMapping(key, value);
+            addMapping(mappings, key, value);
 
             lastPieces.shift();
         }
@@ -135,7 +148,42 @@ function createMapping(text) {
         lastPieces.push(piece);
     });
 
-    addMapping(JSON.stringify(lastPieces), null);
+    addMapping(mappings, JSON.stringify(lastPieces), null);
+}
+
+function generateForUser(user) {
+    var mappings = {};
+
+    const fs = require('fs');
+
+    fs.readdirSync('logs/').forEach((file) => {
+        if(!file.endsWith('.log')) return;
+
+        var contents = fs.readFileSync('logs/' + file).toString().split('\n');
+
+        contents.forEach((line) => {
+            var msg_regex = /^(\[.+?\])  ([<-](.+?)[>-] |\* )?(.+)$/;
+            var match = msg_regex.exec(line);
+            if(!match || (!user && !match[3]) || (user && match[3] !== user)) {
+                return;
+            }
+
+            var text = match[4];
+
+            if(!user) {
+                lineCount++;
+                characterCount += text.length;
+            }
+
+            createMapping(mappings, text);
+        });
+    });
+
+    if(!user) {
+        keyCount = Object.keys(mappings).length;
+    }
+
+    return mappings;
 }
 
 function capitalize(prev, str) {
@@ -146,7 +194,7 @@ function capitalize(prev, str) {
     }
 }
 
-function generateMessage(min_length, initialInputs) {
+function generateMessage(mappings, min_length, initialInputs) {
     if(initialInputs) {
         var keyArray = initialInputs.map(cleanString);
         var keyString = JSON.stringify(keyArray);
@@ -189,12 +237,12 @@ function generateMessage(min_length, initialInputs) {
     return message;
 }
 
-function generateMarkov(initialInputs) {
+function generateMarkov(mappings, initialInputs) {
     const min_length = 6;
 
     var message = [];
     do {
-        message = message.concat(generateMessage(min_length - message.length, initialInputs));
+        message = message.concat(generateMessage(mappings, min_length - message.length, initialInputs));
         initialInputs = null;
 
         let last = message[message.length - 1];
@@ -214,7 +262,7 @@ function markov(bot, from, to, text) {
 
         switch(split[0]) {
             case 'stats':
-                bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Charcter count: ' + characterCount + '. Key count: ' + keyCount);
+                bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Character count: ' + characterCount + '. Key count: ' + keyCount);
                 return;
             default:
                 if(split.length != n) {
@@ -226,6 +274,6 @@ function markov(bot, from, to, text) {
         }
     }
 
-    var message = generateMarkov(initialInputs);
+    var message = generateMarkov(allMappings, initialInputs);
     bot.sayDirect(from, to, false, message.join(' '));
 }

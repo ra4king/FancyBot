@@ -117,7 +117,8 @@ function load_actions() {
                 console.error(e.stack);
             }
         } catch(e) {
-            console.log('Failed to reload the actions ' + e + '\n' + e.stack);
+            console.error('Failed to reload the actions: ' + e)
+            console.error(e.stack);
             bot.sayDirect(from, to, 'Failed to reload the actions ' + e.message);
         }
     }));
@@ -202,6 +203,7 @@ function load_actions() {
                 modules[name].init(action, action_utils, action_config);
             } catch(e) {
                 console.error('Error loading ' + name + ': ' + e);
+                console.error(e.stack);
             }
         }
     });
