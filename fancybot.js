@@ -78,6 +78,10 @@ function load_actions() {
     actions.on('reload', op_only(function(bot, from, to, text, message) {
         console.log('Reloading actions.');
 
+        for(var config in configs) {
+            save_config(config, true);
+        }
+
         var old_actions = actions;
         var old_globals = globals;
 
@@ -101,12 +105,10 @@ function load_actions() {
             console.log('Reloading ' + bot.nick);
 
             for(var config in configs) {
-                save_config(config, configs[config], true);
+                save_config(config, true);
             }
 
             try {
-                load_actions();
-
                 bot.disconnect('Reloading...', function() {
                     global.is_reloading = true;
                     reload(process.argv[1]);
@@ -155,7 +157,7 @@ function load_actions() {
         modules[name] = reload('./actions/' + file);
 
         var action_utils = {
-            save_config: save_config.bind(null, name, configs[name]),
+            save_config: save_config.bind(null, name),
             globals: globals,
             get_bot: function() {
                 return bot;
@@ -221,7 +223,9 @@ function load_config(name) {
 }
 
 var configs_timeout = {};
-function save_config(name, config, immediately) {
+function save_config(name, immediately) {
+    var config = JSON.stringify(configs[name], null, 4);
+
     if(!configs_timeout[name]) {
         configs_timeout[name] = {
             save_config_count: 0,
@@ -236,14 +240,14 @@ function save_config(name, config, immediately) {
         }
 
         if(immediately) {
-            fs.writeFileSync('configs/' + name + '.json', JSON.stringify(config, null, 4));
+            fs.writeFileSync('configs/' + name + '.json', config);
             configs_timeout[name].save_config_count = 0;
             configs_timeout[name].last_config_timeout = null;
         } else {
             configs_timeout[name].last_config_timeout = setTimeout(function() {
                 configs_timeout[name].save_config_count = 0;
                 configs_timeout[name].last_config_timeout = null;
-                fs.writeFile('configs/' + name + '.json', JSON.stringify(config, null, 4), function(err) {
+                fs.writeFile('configs/' + name + '.json', config, function(err) {
                     if(err)
                         console.error('COULD NOT WRITE CONFIG!');
                 });

@@ -37,31 +37,31 @@ function init(action, utils, config) {
         bot.sayDirect(from, to, 'Annoying mode set with a rate of ' + config.annoyingModeRate + '%');
     });
 
-    action({
-            name: 'speaklike',
-            help: 'Usage: !speaklike username. Give it a username and it will speak like them.'
-        },
-        function(bot, from, to, text) {
-            if(!text) {
-                bot.sayDirect(from, to, 'Give me a username!');
-                return;
-            }
+    // action({
+    //         name: 'speaklike',
+    //         help: 'Usage: !speaklike username. Give it a username and it will speak like them.'
+    //     },
+    //     function(bot, from, to, text) {
+    //         if(!text) {
+    //             bot.sayDirect(from, to, 'Give me a username!');
+    //             return;
+    //         }
 
-            if(text != lastUserName) {
-                bot.sayDirect(from, to, 'Analyzing logs of ' + text + '...');
-                var mappings = generateForUser(text);
-                if(Object.keys(mappings).length != 0) {
-                    lastUserName = text;
-                    lastUserMappings = mappings;
-                } else {
-                    bot.sayDirect(from, to, 'No logs found for ' + text + '.');
-                    return;
-                }
-            }
+    //         if(text != lastUserName) {
+    //             bot.sayDirect(from, to, 'Analyzing logs of ' + text + '...');
+    //             var mappings = generateForUser(text);
+    //             if(Object.keys(mappings).length != 0) {
+    //                 lastUserName = text;
+    //                 lastUserMappings = mappings;
+    //             } else {
+    //                 bot.sayDirect(from, to, 'No logs found for ' + text + '.');
+    //                 return;
+    //             }
+    //         }
 
-            var message = generateMarkov(lastUserMappings, null);
-            bot.sayDirect(from, to, false, message.join(' '))
-        });
+    //         var message = generateMarkov(lastUserMappings, null);
+    //         bot.sayDirect(from, to, false, message.join(' '))
+    //     });
 
     function onMessage(bot, from, to, text) {
         createMapping(allMappings, text);
@@ -80,7 +80,7 @@ function init(action, utils, config) {
     }
 
     action({ name: '_msg' }, function(bot, from, to, text) {
-        if(to !== bot.nick && text[0] !== '-') {
+        if(to !== bot.nick && text[0] !== '-' && text[0] !== '!') {
             onMessage(bot, from, to, text);
         }
     });
@@ -111,7 +111,7 @@ function destroy() {
 }
 
 function cleanString(str) {
-    return str.trim().toLowerCase().replace(/[^a-zA-Z0-9,\.]/g, '');
+    return str.trim().toLowerCase().replace(/[^\w,\.\/\\-]/g, '');
 }
 
 function addMapping(mappings, key, value) {
