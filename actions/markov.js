@@ -26,15 +26,19 @@ function init(action, utils, config) {
     n = config.n = config.n || 2;
     utils.save_config();
 
-    mongoose.connect('mongodb://roiatalla.com:27017/markov', { user: config.user, pass: config.pwd }, (err) => {
-        if(err) {
-            console.error('Markov: Error connecting to MongoDB.');
-            console.error(err);
-            return;
-        }
+    if(!global.markovHasLoaded) {
+        global.markovHasLoaded = true;
 
-        console.log('Markov: Successully connected to MongoDB.');
-    });
+        mongoose.connect('mongodb://roiatalla.com:27017/markov', { user: config.user, pass: config.pwd }, (err) => {
+            if(err) {
+                console.error('Markov: Error connecting to MongoDB.');
+                console.error(err);
+                return;
+            }
+
+            console.log('Markov: Successully connected to MongoDB.');
+        });
+    }
 
     config.annoyingModeRate = config.annoyingModeRate || 0;
     utils.save_config();
@@ -56,19 +60,19 @@ function init(action, utils, config) {
     });
 
     action({
-        name: 'speaklike',
-        help: 'Usage: !speaklike username. Give it a username and it will speak like them.'
-    },
-    function(bot, from, to, text) {
-        if(!text) {
-            bot.sayDirect(from, to, 'Give me a username!');
-            return;
-        }
+            name: 'speaklike',
+            help: 'Usage: !speaklike username. Give it a username and it will speak like them.'
+        },
+        function(bot, from, to, text) {
+            if(!text) {
+                bot.sayDirect(from, to, 'Give me a username!');
+                return;
+            }
 
-        generateMarkov(text, null, (err, message) => {
-            bot.sayDirect(from, to, false, err ? String(err) : message.join(' '));
+            generateMarkov(text, null, (err, message) => {
+                bot.sayDirect(from, to, false, err ? String(err) : message.join(' '));
+            });
         });
-    });
 
     function onMessage(bot, from, to, text) {
         createMapping(from, text);
@@ -110,7 +114,7 @@ function init(action, utils, config) {
 }
 
 function destroy() {
-    mongoose.disconnect(() => console.log('Markov: Successfully disconnected from MongoDB.'));
+    clearTimeout(lastTimeout);
 }
 
 function cleanString(str) {
@@ -236,10 +240,9 @@ function generateMessage(user, initialInputs, min_length, callback) {
                 return callback('No mappings for ' + user);
             }
 
+            var idx = Math.floor(Math.random() * count);
 
-            var initialIdx = Math.floor(Math.random() * count);
-
-            Mapping.find(query).skip(initialIdx).limit(1).exec((err, mapping) => {
+            Mapping.find(query).skip(idx).limit(1).exec((err, mapping) => {
                 if(err) {
                     console.error('Markov: error when getting null mappings.');
                     console.error(err);
@@ -249,7 +252,7 @@ function generateMessage(user, initialInputs, min_length, callback) {
                 var keyString = mapping[0].next;
                 var keyArray = JSON.parse(keyString);
                 generate(keyString, keyArray);
-            })
+            });
         });
     }
 }

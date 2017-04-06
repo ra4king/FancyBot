@@ -154,7 +154,13 @@ function load_actions() {
             throw new Error('Cannot use reserved name \'bot\'.');
         }
 
-        modules[name] = reload('./actions/' + file);
+        try {
+            modules[name] = reload('./actions/' + file);
+        } catch(e) {
+            console.error('Error loading ' + name + ': ' + e);
+            console.error(e.stack);
+            return;
+        }
 
         var action_utils = {
             save_config: save_config.bind(null, name),
@@ -204,7 +210,7 @@ function load_actions() {
                 console.log('Loading ' + name);
                 modules[name].init(action, action_utils, action_config);
             } catch(e) {
-                console.error('Error loading ' + name + ': ' + e);
+                console.error('Error initializing ' + name + ': ' + e);
                 console.error(e.stack);
             }
         }
