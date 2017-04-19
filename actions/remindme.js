@@ -60,7 +60,7 @@ function remindme(bot, from, to, text, message, utils, config) {
     }
 
     var reminder = {
-        time: m,
+        time: m.toDate(),
         nick: from,
         msg: text.substring(colon + 1).trim(),
         pm: to === bot.nick
@@ -89,15 +89,15 @@ function is_in_channel(users, nick) {
 }
 
 function handleReminder(bot, reminder, utils, config) {
-    if(!reminder.time instanceof moment) {
-        reminder.time = moment(reminder.time);
+    if(!reminder.time instanceof Date) {
+        reminder.time = new Date(reminder.time);
     }
 
     if(!is_in_channel(bot.chans[bot.channel.toLowerCase()].users, reminder.nick)) {
         return remindOnJoin.push(reminder);
     }
 
-    if(reminder.time < new Date()) {
+    if(reminder.time <= new Date()) {
         bot.sayDirect(reminder.nick, reminder.pm ? bot.nick : bot.channel, reminder.msg);
 
         var idx = config.reminders.indexOf(reminder);
@@ -106,6 +106,6 @@ function handleReminder(bot, reminder, utils, config) {
             utils.save_config();
         }
     } else {
-        setTimeout(() => handleReminder(bot, reminder, utils, config), moment().toDate() - reminder.time.toDate());
+        setTimeout(() => handleReminder(bot, reminder, utils, config), new Date() - reminder.time);
     }
 }
