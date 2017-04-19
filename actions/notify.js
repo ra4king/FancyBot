@@ -18,7 +18,7 @@ function init(action, utils, config) {
     };
 
     action(options, notify);
-    
+
     action({name: '_msg'}, handle_notify);
     action({name: '_action'}, handle_notify);
     action({name: '_join'}, function(bot, channel, nick, message, utils, config) {

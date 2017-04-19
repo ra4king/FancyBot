@@ -254,8 +254,10 @@ function save_config(name, immediately) {
                 configs_timeout[name].save_config_count = 0;
                 configs_timeout[name].last_config_timeout = null;
                 fs.writeFile('configs/' + name + '.json', config, function(err) {
-                    if(err)
+                    if(err) {
                         console.error('COULD NOT WRITE CONFIG!');
+                        console.error(err);
+                    }
                 });
             }, 1000);
         }

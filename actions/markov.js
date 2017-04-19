@@ -75,17 +75,17 @@ function init(action, utils, config) {
         });
 
     function onMessage(bot, from, to, text) {
-        createMapping(from, text);
+        createMappings(from, text, () => {
+            if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < config.annoyingModeRate) {
+                let split = text.split(' ');
+                let idx = Math.floor(Math.random() * (split.length - n + 1));
+                let input = split.slice(idx, idx + n);
 
-        if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < config.annoyingModeRate) {
-            let split = text.split(' ');
-            let idx = Math.floor(Math.random() * (split.length - n + 1));
-            let input = split.slice(idx, idx + n);
-
-            generateMarkov(null, input, (err, message) => {
-                setTimeout(() => bot.sayDirect(from, to, false, err ? String(err) : message.join(' ')), 700);
-            });
-        }
+                generateMarkov(null, input, (err, message) => {
+                    setTimeout(() => bot.sayDirect(from, to, false, err ? String(err) : message.join(' ')), 700);
+                });
+            }
+        });
     }
 
     action({ name: '_msg' }, function(bot, from, to, text) {
@@ -117,19 +117,28 @@ function destroy() {
     clearTimeout(lastTimeout);
 }
 
+let emoticons = [':)', ';)', ':(', ';(', ':D', ';D', ':P', ';P', ':p', ';p', ':/', ';/', '):', ');',
+                 ':-)', ';-)', ':-(', ';-(', ':-D', ';-D', ':-P', ';-P', ':-p', ';-p', ':-/', ';-/', ')-:', ')-;',
+                 ':O', ':o', ':-O', ':-o', ':c', '8D', '8)', ':-c', '8-D', '8-)', 'D:', 'D-:',
+                 '\\o/', '\\o\\', '/o/', '-_-', '-.-', '._.', ';_;', 'T_T', 'T__T', 'T___T', ':>', ':]', ':^)'];
+
 function cleanString(str) {
-    return str.trim().toLowerCase().replace(/[^\w,\.\/\\-]/g, '');
+    if(emoticons.indexOf(str) != -1) return str;
+
+    return str.trim().toLowerCase().replace(/[^\w,:;\.\/\\\-]/g, '');
 }
 
-function addMapping(from, key, value) {
-    new Mapping({
+function toMapping(from, key, value) {
+    return {
         input: key,
         next: value,
         nick: from
-    }).save();
+    };
 }
 
-function createMapping(from, text) {
+function createMappings(from, text, callback) {
+    var mappings = [];
+
     var firstRun = true;
     var lastPieces = [];
     text.split(' ').forEach((piece) => {
@@ -143,11 +152,11 @@ function createMapping(from, text) {
             var value = piece;
 
             if(firstRun) {
-                addMapping(from, null, key);
+                mappings.push(toMapping(from, null, key));
                 firstRun = false;
             }
 
-            addMapping(from, key, value);
+            mappings.push(toMapping(from, key, value));
 
             lastPieces.shift();
         }
@@ -155,13 +164,24 @@ function createMapping(from, text) {
         lastPieces.push(piece);
     });
 
-    if(lastPieces.length != n) {
-        addMapping(from, JSON.stringify(lastPieces), null);
+    if(lastPieces.length == n) {
+        mappings.push(toMapping(from, JSON.stringify(lastPieces), null));
     }
+
+    Mapping.insertMany(mappings, (err) => {
+        if(err) {
+            console.error('Markov: error saving to mongodb');
+            console.error(err);
+        }
+
+        callback();
+    });
 }
 
 function capitalize(prev, str) {
-    if(str && (prev == null || prev.charAt(prev.length - 1) == '.')) {
+    if(str === 'i') {
+        return 'I';
+    } else if(str && (prev == null || prev.charAt(prev.length - 1) == '.')) {
         return str.substring(0,1).toUpperCase() + str.substring(1);
     } else {
         return str;
@@ -294,8 +314,23 @@ function markov(bot, from, to, text) {
 
         switch(split[0]) {
             case 'stats':
-                bot.sayDirect(from, to, 'Stats to be implemented...');
-                //bot.sayDirect(from, to, 'Line count: ' + lineCount + '. Character count: ' + characterCount + '. Key count: ' + keyCount);
+                Mapping.find().count((err, total) => {
+                    if(err) {
+                        console.error('Error when getting total mapping count.');
+                        console.error(err);
+                        bot.sayDirect(from, to, 'Error when getting total mapping count: ' + String(err));
+                    } else {
+                        Mapping.find({ input: null }).count((err, lines) => {
+                            if(err) {
+                                console.error('Error when getting line count.');
+                                console.error(err);
+                                bot.sayDirect(from, to, 'Error when getting line count: ' + String(err));
+                            } else {
+                                bot.sayDirect(from, to, 'Mapping count: ' + total + '. Line count: ' + lines + '.');
+                            }
+                        });
+                    }
+                });
                 return;
             default:
                 if(split.length != n) {

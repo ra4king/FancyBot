@@ -14,7 +14,7 @@ var min_date = '2015-03-25';
 
 function log_request(request, response) {
     response.setHeader('Access-Control-Allow-Origin', '*');
-    
+
     var fs = require('fs');
 
     var param = require('url').parse(request.url, true);
@@ -27,7 +27,9 @@ function log_request(request, response) {
                     response.writeHead(404);
                     response.end('File not found.');
                 } else {
-                    response.writeHead(200);
+                    response.writeHead(200, {
+                        'Content-Length': Buffer.byteLength(data),
+                        'Content-Type': 'text/css' });
                     response.end(data);
                 }
             });
@@ -60,7 +62,7 @@ function log_request(request, response) {
                     body = generateHTML(date_string, lines, response);
                 }
 
-                response.writeHead(200);
+                response.writeHead(200, { 'Content-Length': Buffer.byteLength(body) });
                 response.end(body);
             } catch(e) {
                 response.writeHead(500);
@@ -96,7 +98,7 @@ function generateHTML(date_string, lines) {
     html += '<html>\n';
     html += '   <head>\n';
     html += '       <title>' + channel + ' logs ' + title + '</title>\n';
-    html += '       <link rel="stylesheet" href="/jgo-logs/log_viewer.css" />\n';
+    html += '       <link rel="stylesheet" type="text/css" href="/jgo-logs/log_viewer.css" />\n';
     html += '   </head>\n';
     html += '   <body>\n';
     html += '       <h1>' + channel + ' logs ' + title + '</h1>\n';
