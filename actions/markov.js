@@ -29,7 +29,7 @@ function init(action, utils, config) {
     if(!global.markovHasLoaded) {
         global.markovHasLoaded = true;
 
-        mongoose.connect('mongodb://roiatalla.com:27017/markov', { user: config.user, pass: config.pwd }, (err) => {
+        mongoose.connect(config.url, { user: config.user, pass: config.pwd }, (err) => {
             if(err) {
                 console.error('Markov: Error connecting to MongoDB.');
                 console.error(err);
