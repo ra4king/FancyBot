@@ -40,6 +40,12 @@ Features so far:
   - If quote ommitted, prints random saved quote for nick. Otherwise stores new quote for nick.
 - **!unquote nick quote**
   - Removes closest matching quote for nick.
+- **!markov [seed words]**
+  - Generates random text based on channel logs. 2 seed words can be used to start the message. The logs must be loaded in as mappings in mongodb using the load_markov.js tool.
+- **!speaklike nick**
+  - Generates random text based on channel logs of the specified nick. Logs must be loaded as mentioned above for !markov.
+- **!remindme 5 hours 30 minutes: buy some milk**
+  - Pings the user after the desired time has passed the message they specify.
 
 All action functions are provided a bot object. More information on the object can be found here: http://node-irc.readthedocs.io/  
 Additional functions available:
