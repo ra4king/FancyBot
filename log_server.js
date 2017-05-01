@@ -81,7 +81,7 @@ function log_request(request, response) {
                     var rgx = new RegExp(query, 'ig');
 
                     var search;
-                    while((search = rgx.exec(text)) && found.length < MAX_RESULTS) {
+                    while((search = rgx.exec(text))) {
                         var idx = search.index;
                         var start = text.lastIndexOf('\n', idx);
                         var end = text.indexOf('\n', idx);
@@ -92,7 +92,11 @@ function log_request(request, response) {
                         found.push([ file, search.index, text.substring(start, end) ]);
                     }
 
-                    if(found.length >= MAX_RESULTS || visited == files.length) {
+                    if(found.length > MAX_RESULTS) {
+                        found.splice(0, found.length - MAX_RESULTS);
+                    }
+
+                    if(visited == files.length) {
                         hasResponded = true;
 
                         var html = '<!DOCTYPE html>';
