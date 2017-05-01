@@ -114,7 +114,7 @@ function log_request(request, response) {
                         if(found.length > 0) {
                             html += '       <ol>\n';
 
-                            found.forEach(result => {
+                            found.reverse().forEach(result => {
                                 var file = result[0];
                                 var date = file.substring(channel.length + 1, channel.length + 1 + min_date.length);
                                 html += '           <li>\n';
@@ -168,6 +168,7 @@ function log_request(request, response) {
                                     html += '<div class="' + msg_class + '">' + line + '</div></div>\n';
                                 }
 
+                                html += '               <hr />\n';
                                 html += '           </li>\n';
                             });
 

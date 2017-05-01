@@ -6,6 +6,8 @@ body {
 }
 
 h1 {
+	flex: 0 1 auto;
+
 	min-width: 500px;
 	white-space: nowrap;
 }
@@ -26,6 +28,10 @@ a:hover {
 	align-items: flex-start;
 }
 
+p {
+	margin: 0px;
+}
+
 nav {
 	display: flex;
 	flex-flow: row nowrap;
@@ -36,7 +42,7 @@ nav {
 }
 
 li {
-	margin-top: 5px;
+	margin-top: 10px;
 }
 
 .prev_date {
