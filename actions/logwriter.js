@@ -64,6 +64,8 @@ var log_buffer = [];
 var fs = require('fs');
 
 function writeToLog(channel, text) {
+    if(!channel) return;
+
     log_buffer.push([new Date(), text]);
 
     if(save_log_count < 10) {

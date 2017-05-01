@@ -71,11 +71,17 @@ function log_request(request, response) {
                         return response.end('Internal error');
                     }
 
+                    var query = param.query.search;
+
+                    if(param.query.regex !== "true") {
+                        query = query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&');
+                    }
+
                     var text = data.toString();
-                    var rgx = new RegExp(param.query.search, 'ig');
+                    var rgx = new RegExp(query, 'ig');
 
                     var search;
-                    while((search = rgx.exec(text)) != null && found.length < MAX_RESULTS) {
+                    while((search = rgx.exec(text)) && found.length < MAX_RESULTS) {
                         var idx = search.index;
                         var start = text.lastIndexOf('\n', idx);
                         var end = text.indexOf('\n', idx);
@@ -99,11 +105,10 @@ function log_request(request, response) {
                         html += '       <h1>Search results</h1>\n';
                         html += '       <div id="header">\n';
                         html += '           <p>Search query: ' + htmlencode.htmlEncode(param.query.search) + '</p>\n';
-                        html += '           <form method="get">\n';
-                        html += '               <div id="search">\n';
-                        html += '                  Search: <input type="text" name="search" />\n';
-                        html += '                  <input type="submit" value="Go" id="searchgo">\n';
-                        html += '              </div>\n';
+                        html += '           <form id="search" method="get">\n';
+                        html += '               <label>Search: <input type="text" name="search" value="' + htmlencode.htmlEncode(param.query.search) + '" /></label>\n';
+                        html += '               <label>Use regex: <input type="checkbox" name="regex" value="true" ' + (param.query.regex === 'true' ? 'checked' : '') + ' /></label>\n';
+                        html += '               <input type="submit" value="Go" id="searchgo" />\n';
                         html += '          </form>\n';
                         html += '       </div>\n';
                         if(found.length > 0) {
@@ -253,19 +258,16 @@ function generateHTML(date_string, lines, highlight) {
     html += '   <body>\n';
     html += '       <h1>' + channel + ' logs ' + title + '</h1>\n';
     html += '       <div id="header">'
-    html += '           <form method="get">\n';
-    html += '               <div id="datepicker">\n';
-    html += '                  Date: <input type="date" name="date" min="' + min_date + '" value="' + date_string_html + '"/>\n';
-    html += '                  <input type="submit" value="Go" id="datego">\n';
-    html += '              </div>\n';
+    html += '           <form id="datepicker" method="get">\n';
+    html += '               Date: <input type="date" name="date" min="' + min_date + '" value="' + date_string_html + '"/>\n';
+    html += '               <input type="submit" value="Go" id="datego" />\n';
+    html += '           </form>\n';
+    html += '           <form id="search" method="get">\n';
+    html += '               <label>Search: <input type="text" name="search" /></label>\n';
+    html += '               <label>Use regex: <input type="checkbox" name="regex" value="true" /></label>\n';
+    html += '               <input type="submit" value="Go" id="searchgo" />\n';
     html += '          </form>\n';
-    html += '           <form method="get">\n';
-    html += '               <div id="search">\n';
-    html += '                  Search: <input type="text" name="search" />\n';
-    html += '                  <input type="submit" value="Go" id="searchgo">\n';
-    html += '              </div>\n';
-    html += '          </form>\n';
-    html += '       </div>'
+    html += '       </div>\n';
     if(lines) {
         html += prev_next_date_html;
         html += '       <hr />\n';
