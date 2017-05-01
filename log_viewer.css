@@ -19,62 +19,89 @@ a:hover {
 	text-decoration: underline;
 }
 
-#today {
-	width: 33%;
-	display: inline-block;
-	margin: auto;
-	text-align: center;
+#header {
+	display: flex;
+	flex-flow: row nowrap;
+	justify-content: space-between;
+	align-items: flex-start;
 }
 
-#prev_date {
-	width: 33%;
-	display: inline-block;
-	float: left;
+nav {
+	display: flex;
+	flex-flow: row nowrap;
+	justify-content: space-between;
+	align-items: center;
+
+	margin-top: 10px;
+}
+
+li {
+	margin-top: 5px;
+}
+
+.prev_date {
+	flex: 1 1 auto;
 	text-align: left;
 }
 
-#next_date {
-	width: 33%;
-	display: inline-block;
-	float: right;
+.today {
+	flex: 1 1 auto;
+	text-align: center;
+}
+
+.next_date {
+	flex: 1 1 auto;
 	text-align: right;
 }
 
 .row {
-	white-space: nowrap;
-	clear: left;
+	display: flex;
+	flex-flow: row nowrap;
+	justify-content: flex-start;
+	align-items: stretch;
 }
 
 .row:nth-child(odd) {
 	background: #0F1215;
 }
 
+#mark {
+	background: #888800;
+}
+
 .datestring {
-	vertical-align: top;
+	flex: 0 1 auto;
+
 	min-width: 280px;
 	width: 280px;
-	float: left;
+	vertical-align: top;
 }
 
 .nick {
+	flex: 0 1 auto;
+
 	color: #DC143C;
 	text-align: right;
 	vertical-align: top;
 	min-width: 160px;
 	width: 160px;
 	padding-right: 10px;
-	float: left;
 }
 
 .msg {
+	flex: 1 1 auto;
+
 	vertical-align: top;
-	margin-left: 450px;
 	color: #FFFFFF;
-	white-space: pre;
+	white-space: pre-wrap;
+	word-wrap: break-word;
 }
 
 .event {
+	flex: 1 1 auto;
+
 	vertical-align: top;
-	margin-left: 280px;
 	color: #BDB76B;
+	white-space: pre-wrap;
+	word-wrap: break-word;
 }

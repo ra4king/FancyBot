@@ -1,8 +1,6 @@
 var log_server_port = 8000;
 
-require('http').createServer(function(request, response) {
-    log_request(request, response);
-}).listen(log_server_port, function() {
+require('http').createServer(log_request).listen(log_server_port, function() {
     console.log('Log server ready on port ' + log_server_port);
 });
 
@@ -37,10 +35,155 @@ function log_request(request, response) {
             response.writeHead(404);
             response.end('File not found.');
         }
+    } else if(param.query.search) {
+        fs.readdir('logs/', (err, files) => {
+            if(err) {
+                console.error('Error reading logs directory');
+                console.error(err);
+
+                return response.writeHead(500).end('Internal error');
+            }
+
+            var hasResponded = false;
+
+            var found = [];
+            var visited = 0;
+            var MAX_RESULTS = 1000;
+
+            files.forEach((file) => {
+                if(!file.startsWith(channel)) {
+                    visited++;
+                    return;
+                }
+
+                fs.readFile('logs/' + file, (err, data) => {
+                    visited++;
+
+                    if(hasResponded) {
+                        return;
+                    }
+
+                    if(err) {
+                        hasResponded = true;
+                        console.error('Error reading file: ' + file);
+                        console.error(err);
+                        response.writeHead(500);
+                        return response.end('Internal error');
+                    }
+
+                    var text = data.toString();
+                    var rgx = new RegExp(param.query.search, 'ig');
+
+                    var search;
+                    while((search = rgx.exec(text)) != null && found.length < MAX_RESULTS) {
+                        var idx = search.index;
+                        var start = text.lastIndexOf('\n', idx);
+                        var end = text.indexOf('\n', idx);
+
+                        start = start == -1 ? 0 : start;
+                        end = end == -1 ? text.length : end;
+
+                        found.push([ file, search.index, text.substring(start, end) ]);
+                    }
+
+                    if(found.length >= MAX_RESULTS || visited == files.length) {
+                        hasResponded = true;
+
+                        var html = '<!DOCTYPE html>';
+                        html += '<html>\n';
+                        html += '   <head>\n';
+                        html += '       <title>' + channel + ' logs - Search results</title>\n';
+                        html += '       <link rel="stylesheet" type="text/css" href="/jgo-logs/log_viewer.css" />\n';
+                        html += '   </head>\n';
+                        html += '   <body>\n';
+                        html += '       <h1>Search results</h1>\n';
+                        html += '       <div id="header">\n';
+                        html += '           <p>Search query: ' + htmlencode.htmlEncode(param.query.search) + '</p>\n';
+                        html += '           <form method="get">\n';
+                        html += '               <div id="search">\n';
+                        html += '                  Search: <input type="text" name="search" />\n';
+                        html += '                  <input type="submit" value="Go" id="searchgo">\n';
+                        html += '              </div>\n';
+                        html += '          </form>\n';
+                        html += '       </div>\n';
+                        if(found.length > 0) {
+                            html += '       <ol>\n';
+
+                            found.forEach(result => {
+                                var file = result[0];
+                                var date = file.substring(channel.length + 1, channel.length + 1 + min_date.length);
+                                html += '           <li>\n';
+                                html += '               <div><a href="?date=' + date + '&mark=' + result[1] + '#mark">' + htmlencode.htmlEncode(file) + '</a></div>\n';
+
+                                var line = result[2].trim();
+
+                                var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
+                                var match = msg_regex.exec(line);
+                                if(!match) {
+                                    html += '                   <div>' + htmlencode.htmlEncode(line) + '</div>\n';
+                                } else {
+                                    html += '       <div class="row"><div class="datestring">' + htmlencode.htmlEncode(match[1]) + '</div>';
+
+                                    var msg_class = 'msg';
+
+                                    if(match[2]) {
+                                        html += '<div class="nick">' + htmlencode.htmlEncode(match[2]) + '</div>';
+                                    } else {
+                                        msg_class = 'event';
+                                    }
+
+                                    var url_regex = /(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
+
+                                    var msg = match[3];
+
+                                    var tldjs = require('tldjs');
+
+                                    var line = '';
+                                    var url;
+                                    while(url = url_regex.exec(msg)) {
+                                        if(url.index > 0) {
+                                            line += htmlencode.htmlEncode(msg.substring(0, url.index));
+                                        }
+
+                                        var url_result = url[0];
+
+                                        if(!tldjs.tldExists(url_result) || !tldjs.isValid(url_result)) {
+                                            line += htmlencode.htmlEncode(url_result);
+                                        } else {
+                                            line += '<a target="_blank" href="' + (url[1] ? '' : 'http://') + url_result + '">' + htmlencode.htmlEncode(url_result) + '</a>';
+                                        }
+
+                                        msg = msg.substring(url.index + url_result.length);
+                                    }
+
+                                    if(msg.length > 0) {
+                                        line += htmlencode.htmlEncode(msg);
+                                    }
+
+                                    html += '<div class="' + msg_class + '">' + line + '</div></div>\n';
+                                }
+
+                                html += '           </li>\n';
+                            });
+
+                            html += '       </ol>\n';
+                        } else {
+                            html += '       <p>No results found</p>\n';
+                        }
+
+                        html += '   </body>\n';
+                        html += '</html>\n';
+
+                        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': html.length });
+                        response.end(html);
+                    }
+                });
+            });
+        });
     } else {
         var date_string = dateToString(new Date());
         var queried_today;
-        if(param.query && param.query.date) {
+        if(param.query.date) {
             queried_today = date_string === param.query.date;
             date_string = param.query.date;
         } else {
@@ -49,17 +192,17 @@ function log_request(request, response) {
 
         var filename = 'logs/' + channel + '.' + date_string + '.log';
 
-        fs.readFile(filename, function(err, data) {
+        fs.readFile(filename, (err, data) => {
             try {
                 var lines = err ? (queried_today ? [] : null) : data.toString().split('\n');
 
                 var body;
                 if(param.query && param.query.type === 'json') {
                     response.setHeader('Content-Type', 'application/json; charset=utf-8');
-                    body = generateJSON(date_string, lines, response);
+                    body = generateJSON(date_string, lines);
                 } else {
                     response.setHeader('Content-Type', 'text/html; charset=utf-8');
-                    body = generateHTML(date_string, lines, response);
+                    body = generateHTML(date_string, lines, Number(param.query.mark) || -1);
                 }
 
                 response.writeHead(200, { 'Content-Length': Buffer.byteLength(body) });
@@ -79,7 +222,7 @@ function dateToString(date) {
     return date.getUTCFullYear() + '-' + left_pad(date.getUTCMonth()+1) + '-' + left_pad(date.getUTCDate());
 }
 
-function generateHTML(date_string, lines) {
+function generateHTML(date_string, lines, highlight) {
     var date_string_html = htmlencode.htmlEncode(date_string);
     var title = lines === null ? '' : date_string_html;
 
@@ -89,37 +232,56 @@ function generateHTML(date_string, lines) {
     d.setUTCDate(d.getUTCDate() + 2)
     var next_date = dateToString(d);
 
-    var prev_date_html = Date.parse(prev_date) - Date.parse(min_date) >= 0 ? '<a id="prev_date" href="?date=' + prev_date + '">' + htmlencode.htmlEncode('<-- ' + prev_date) + '</a>' : '<div id="prev_date"></div>';
-    var today_html = '<a id="today" href="?">' + dateToString(new Date()) + '</a>';
-    var next_date_html = Date.parse(next_date) - Date.now() > 0 ? '<div id="next_date"></div>' : '<a id="next_date" href="?date=' + next_date + '">' + htmlencode.htmlEncode(next_date + ' -->') + '</a>';
-    var prev_next_date_html = '     <div>' + prev_date_html + today_html + next_date_html + '</div>\n';
+    var prev_date_html = Date.parse(prev_date) - Date.parse(min_date) >= 0 ? '<a class="prev_date" href="?date=' + prev_date + '">' + htmlencode.htmlEncode('<-- ' + prev_date) + '</a>' : '<div class="prev_date"></div>';
+    var today_html = '<a class="today" href="?"></a>';
+    var next_date_html = Date.parse(next_date) - Date.now() > 0 ? '<div class="next_date"></div>' : '<a class="next_date" href="?date=' + next_date + '">' + htmlencode.htmlEncode(next_date + ' -->') + '</a>';
+    var prev_next_date_html = '     <nav>' + prev_date_html + today_html + next_date_html + '</nav>\n';
 
-    var html = '';
+    var html = '<!DOCTYPE html>';
     html += '<html>\n';
     html += '   <head>\n';
     html += '       <title>' + channel + ' logs ' + title + '</title>\n';
     html += '       <link rel="stylesheet" type="text/css" href="/jgo-logs/log_viewer.css" />\n';
+    html += '       <script>\n';
+    html += '           window.onload = function() {\n';
+    html += '               function updateToday() { [].forEach.call(document.getElementsByClassName("today"), function(elem) { elem.innerHTML = new Date().toGMTString(); }); }\n';
+    html += '               updateToday();'
+    html += '               setInterval(updateToday, 1000);\n';
+    html += '           };\n';
+    html += '       </script>\n';
     html += '   </head>\n';
     html += '   <body>\n';
     html += '       <h1>' + channel + ' logs ' + title + '</h1>\n';
-    html += '       <form method="get">\n';
-    html += '           <div id="datepicker">\n';
-    html += '               Date: <input type="date" name="date" min="' + min_date + '" value="' + date_string_html + '"/>\n';
-    html += '               <input type="submit" value="Go" id="datego">\n';
-    html += '           </div>\n';
-    html += '       </form>\n';
+    html += '       <div id="header">'
+    html += '           <form method="get">\n';
+    html += '               <div id="datepicker">\n';
+    html += '                  Date: <input type="date" name="date" min="' + min_date + '" value="' + date_string_html + '"/>\n';
+    html += '                  <input type="submit" value="Go" id="datego">\n';
+    html += '              </div>\n';
+    html += '          </form>\n';
+    html += '           <form method="get">\n';
+    html += '               <div id="search">\n';
+    html += '                  Search: <input type="text" name="search" />\n';
+    html += '                  <input type="submit" value="Go" id="searchgo">\n';
+    html += '              </div>\n';
+    html += '          </form>\n';
+    html += '       </div>'
     if(lines) {
         html += prev_next_date_html;
         html += '       <hr />\n';
 
+        var currIdx = 0;
         lines.forEach(function(s) {
+            var mark = highlight >= currIdx && highlight < currIdx + s.length + 1;
+            currIdx += s.length + 1;
+
             var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
             var match = msg_regex.exec(s);
             if(!match) {
                 return;
             }
 
-            html += '       <div class="row"><div class="datestring">' + htmlencode.htmlEncode(match[1]) + '</div>';
+            html += '       <div ' + (mark ? 'id="mark" ' : '') + 'class="row"><div class="datestring">' + htmlencode.htmlEncode(match[1]) + '</div>';
 
             var msg_class = 'msg';
 
