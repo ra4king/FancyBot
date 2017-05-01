@@ -20,6 +20,7 @@ try {
 }
 
 var n;
+var inputNullCount;
 var lastTimeout;
 
 function init(action, utils, config) {
@@ -33,6 +34,7 @@ function init(action, utils, config) {
             if(err) {
                 console.error('Markov: Error connecting to MongoDB.');
                 console.error(err);
+                global.markovHasLoaded = false;
                 return;
             }
 
@@ -153,6 +155,9 @@ function createMappings(from, text, callback) {
 
             if(firstRun) {
                 mappings.push(toMapping(from, null, key));
+                if(inputNullCount) {
+                    inputNullCount++;
+                }
                 firstRun = false;
             }
 
@@ -244,22 +249,7 @@ function generateMessage(user, initialInputs, min_length, callback) {
         var keyString = JSON.stringify(keyArray);
         generate(keyString, keyArray);
     } else {
-        var query = { input: null };
-        if(user) {
-            query.nick = user;
-        }
-
-        Mapping.find(query).count((err, count) => {
-            if(err) {
-                console.error('Markov: error when getting null mappings.');
-                console.error(err);
-                return callback(err);
-            }
-
-            if(count == 0) {
-                return callback('No mappings for ' + user);
-            }
-
+        var chooseFirst = (count) => {
             var idx = Math.floor(Math.random() * count);
 
             Mapping.find(query).skip(idx).limit(1).exec((err, mapping) => {
@@ -273,6 +263,31 @@ function generateMessage(user, initialInputs, min_length, callback) {
                 var keyArray = JSON.parse(keyString);
                 generate(keyString, keyArray);
             });
+        }
+
+        var query = { input: null };
+        if(user) {
+            query.nick = user;
+        } else if(inputNullCount) {
+            return chooseFirst(inputNullCount);
+        }
+
+        Mapping.find(query).count((err, count) => {
+            if(err) {
+                console.error('Markov: error when getting null mappings.');
+                console.error(err);
+                return callback(err);
+            }
+
+            if(count == 0) {
+                return callback('No mappings for ' + user);
+            }
+
+            if(!user) {
+                inputNullCount = count;
+            }
+
+            chooseFirst(count);
         });
     }
 }
@@ -307,6 +322,8 @@ function generateMarkov(user, initialInputs, callback) {
 }
 
 function markov(bot, from, to, text) {
+    console.log('Generating markov');
+    
     var initialInputs = null;
 
     if(text) {
