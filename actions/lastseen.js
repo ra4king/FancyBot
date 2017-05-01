@@ -11,21 +11,49 @@ function init(action, utils, config) {
 
     action(last_seen_options, last_seen);
 
-    action({name: '_msg'}, function(bot, from, to, text, message, utils, config) {
+    action({name: '_msg'}, (bot, from, to, text, message, utils, config) => {
         if(to !== bot.nick && text[0] !== '-') {
             handle_last_seen(bot, from, to, text, message, utils, config);
         }
     });
 
-    action({name: '_action'}, function(bot, from, to, text, message, utils, config) {
+    action({name: '_action'}, (bot, from, to, text, message, utils, config) => {
         if(to !== bot.nick) {
             handle_last_seen(bot, from, to, text, message, utils, config);
         }
     });
 
-    action({name: '_join'}, function(bot, channel, nick, message, utils, config) {
+    action({name: '_join'}, (bot, channel, nick, message, utils, config) => {
         handle_last_seen(bot, nick, channel, '[joined ' + channel + ']', message, utils, config);
     });
+
+    // action({ name: 'rebuild-last-seen', op_only: true }, (bot, from, to, text, message, utils, config) => {
+    //     var logs = require('fs').readdirSync('logs/').forEach((file) => {
+    //         if(!file.endsWith('.log')) {
+    //             return parseLog(idx + 1);
+    //         }
+
+    //         require('fs').readFile('logs/' + file, 'utf8', (err, contents) => {
+    //             contents.toString().split('\n').forEach((line) => {
+    //                 var msg_regex = /^\[(.+?)\]  (?:([<-])(.+?)[>-] )?(.+)$/;
+    //                 var match = msg_regex.exec(line);
+    //                 if(!match) {
+    //                     return;
+    //                 }
+
+    //                 if(match[3] && match[3].toLowerCase().indexOf('fancybot') == -1) {
+    //                     config[match[3]] = {
+    //                         timestamp: new Date(match[1]).getTime(),
+    //                         msg: match[4]
+    //                     };
+    //                 }
+    //             });
+
+    //             utils.save_config();
+    //             console.log('Done rebuilding last seen for ' + file);
+    //         });
+    //     });
+    // });
 }
 
 function last_seen(bot, from, to, text, message, utils, config) {
