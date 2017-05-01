@@ -83,7 +83,7 @@ function no_command(bot, from, to, text, message, utils, config) {
                                 var title = title_regex.exec(data);
 
                                 if(title && title[1]) {
-                                    title = title[1].replace(/\r|\n/g, ' ');
+                                    title = title[1].replace(/\r\n|\r|\n/g, ' ');
 
                                     var htmlencode = require('htmlencode');
 

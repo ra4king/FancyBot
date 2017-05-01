@@ -24,7 +24,7 @@ function define(bot, from, to, text, message) {
                 }
 
                 var result = json.list[0];
-                bot.sayDirect(from, to, result.word + ': ' + result.definition + ' - ' + result.permalink);
+                bot.sayDirect(from, to, result.word + ': ' + result.definition.replace('\r', '').replace('\n', ' ') + ' - ' + result.permalink);
             } catch(e) {
                 console.error(data + ' ' + e);
                 console.error(e.stack);

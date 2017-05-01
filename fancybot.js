@@ -384,7 +384,7 @@ bot.on('message', function(nick, to, text, message) {
         var command = text.substring(1, index == -1 ? undefined : index).trim().toLowerCase();
 
         console.log('Detected command from ' + nick + ': ' + text);
-        
+
         if(command[0] != '_' && actions.emit(command, bot, nick, to, index == -1 ? '' : text.substring(index).trim(), message)) {
             return;
         }
