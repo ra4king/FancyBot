@@ -1,113 +1,119 @@
 body {
-	line-height: 1.3em;
-	background: #0C1010;
-	color: #008000;
-	font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace;
+    line-height: 1.3em;
+    background: #0C1010;
+    color: #008000;
+    font-family: "Consolas", "Source Code Pro", "Andale Mono", "Monaco", "Lucida Console", monospace;
 }
 
 h1 {
-	flex: 0 1 auto;
+    flex: 0 1 auto;
 
-	min-width: 500px;
-	white-space: nowrap;
+    min-width: 500px;
+    white-space: nowrap;
 }
 
 a {
-	color: #68A4DE;
-	text-decoration: none;
+    color: #68A4DE;
+    text-decoration: none;
 }
 
 a:hover {
-	text-decoration: underline;
+    text-decoration: underline;
 }
 
 #header {
-	display: flex;
-	flex-flow: row nowrap;
-	justify-content: space-between;
-	align-items: flex-start;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
+    align-items: flex-start;
 }
 
 p {
-	margin: 0px;
+    margin: 0px;
 }
 
 nav {
-	display: flex;
-	flex-flow: row nowrap;
-	justify-content: space-between;
-	align-items: center;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
+    align-items: center;
 
-	margin-top: 10px;
+    margin-top: 10px;
 }
 
 li {
-	margin-top: 10px;
+    margin-top: 10px;
 }
 
 .prev_date {
-	flex: 1 1 auto;
-	text-align: left;
+    flex: 1 1 auto;
+    text-align: left;
 }
 
 .today {
-	flex: 1 1 auto;
-	text-align: center;
+    flex: 1 1 auto;
+    text-align: center;
 }
 
 .next_date {
-	flex: 1 1 auto;
-	text-align: right;
+    flex: 1 1 auto;
+    text-align: right;
 }
 
 .row {
-	display: flex;
-	flex-flow: row nowrap;
-	justify-content: flex-start;
-	align-items: stretch;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-start;
+    align-items: stretch;
+
+    overflow: hidden;
 }
 
 .row:nth-child(odd) {
-	background: #0F1215;
+    background: #0F1215;
 }
 
 #mark {
-	background: #888800;
+    background: #888800;
 }
 
 .datestring {
-	flex: 0 1 auto;
+    flex: 0 1 auto;
 
-	min-width: 280px;
-	width: 280px;
-	vertical-align: top;
+    min-width: 280px;
+    width: 280px;
+    vertical-align: top;
 }
 
 .nick {
-	flex: 0 1 auto;
+    flex: 0 1 auto;
 
-	color: #DC143C;
-	text-align: right;
-	vertical-align: top;
-	min-width: 160px;
-	width: 160px;
-	padding-right: 10px;
+    color: #DC143C;
+    text-align: right;
+    vertical-align: top;
+    min-width: 160px;
+    width: 160px;
+    padding-right: 10px;
 }
 
 .msg {
-	flex: 1 1 auto;
+    flex: 1 1 auto;
 
-	vertical-align: top;
-	color: #FFFFFF;
-	white-space: pre-wrap;
-	word-wrap: break-word;
+    vertical-align: top;
+    color: #FFFFFF;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    overflow: auto;
 }
 
 .event {
-	flex: 1 1 auto;
+    flex: 1 1 auto;
 
-	vertical-align: top;
-	color: #BDB76B;
-	white-space: pre-wrap;
-	word-wrap: break-word;
+    vertical-align: top;
+    color: #BDB76B;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    overflow: auto;
 }

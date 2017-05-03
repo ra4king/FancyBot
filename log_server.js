@@ -99,93 +99,22 @@ function log_request(request, response) {
                     if(visited == files.length) {
                         hasResponded = true;
 
-                        var html = '<!DOCTYPE html>';
-                        html += '<html>\n';
-                        html += '   <head>\n';
-                        html += '       <title>' + channel + ' logs - Search results</title>\n';
-                        html += '       <link rel="stylesheet" type="text/css" href="/jgo-logs/log_viewer.css" />\n';
-                        html += '   </head>\n';
-                        html += '   <body>\n';
-                        html += '       <h1>Search results</h1>\n';
-                        html += '       <div id="header">\n';
-                        html += '           <p>Search query: ' + htmlencode.htmlEncode(param.query.search) + '</p>\n';
-                        html += '           <form id="search" method="get">\n';
-                        html += '               <label>Search: <input type="text" name="search" value="' + htmlencode.htmlEncode(param.query.search) + '" /></label>\n';
-                        html += '               <label>Use regex: <input type="checkbox" name="regex" value="true" ' + (param.query.regex === 'true' ? 'checked' : '') + ' /></label>\n';
-                        html += '               <input type="submit" value="Go" id="searchgo" />\n';
-                        html += '          </form>\n';
-                        html += '       </div>\n';
-                        if(found.length > 0) {
-                            html += '       <ol>\n';
+                        try {
+                            var body;
+                            if(param.query && param.query.type === 'json') {
+                                response.setHeader('Content-Type', 'application/json; charset=utf-8');
+                                body = generateSearchJSON(param.query.search, param.query.regex, found);
+                            } else {
+                                response.setHeader('Content-Type', 'text/html; charset=utf-8');
+                                body = generateSearchHTML(param.query.search, param.query.regex, found);
+                            }
 
-                            found.reverse().forEach(result => {
-                                var file = result[0];
-                                var date = file.substring(channel.length + 1, channel.length + 1 + min_date.length);
-                                html += '           <li>\n';
-                                html += '               <div><a href="?date=' + date + '&mark=' + result[1] + '#mark">' + htmlencode.htmlEncode(file) + '</a></div>\n';
-
-                                var line = result[2].trim();
-
-                                var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
-                                var match = msg_regex.exec(line);
-                                if(!match) {
-                                    html += '                   <div>' + htmlencode.htmlEncode(line) + '</div>\n';
-                                } else {
-                                    html += '       <div class="row"><div class="datestring">' + htmlencode.htmlEncode(match[1]) + '</div>';
-
-                                    var msg_class = 'msg';
-
-                                    if(match[2]) {
-                                        html += '<div class="nick">' + htmlencode.htmlEncode(match[2]) + '</div>';
-                                    } else {
-                                        msg_class = 'event';
-                                    }
-
-                                    var url_regex = /(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
-
-                                    var msg = match[3];
-
-                                    var tldjs = require('tldjs');
-
-                                    var line = '';
-                                    var url;
-                                    while(url = url_regex.exec(msg)) {
-                                        if(url.index > 0) {
-                                            line += htmlencode.htmlEncode(msg.substring(0, url.index));
-                                        }
-
-                                        var url_result = url[0];
-
-                                        if(!tldjs.tldExists(url_result) || !tldjs.isValid(url_result)) {
-                                            line += htmlencode.htmlEncode(url_result);
-                                        } else {
-                                            line += '<a target="_blank" href="' + (url[1] ? '' : 'http://') + url_result + '">' + htmlencode.htmlEncode(url_result) + '</a>';
-                                        }
-
-                                        msg = msg.substring(url.index + url_result.length);
-                                    }
-
-                                    if(msg.length > 0) {
-                                        line += htmlencode.htmlEncode(msg);
-                                    }
-
-                                    html += '<div class="' + msg_class + '">' + line + '</div></div>\n';
-                                }
-
-                                html += '               <hr />\n';
-                                html += '           </li>\n';
-                            });
-
-                            html += '       </ol>\n';
-                        } else {
-                            html += '       <p>No results found</p>\n';
+                            response.writeHead(200, { 'Content-Length': Buffer.byteLength(body) });
+                            response.end(body);
+                        } catch(e) {
+                            response.writeHead(500);
+                            response.end('Internal error: ' + e);
                         }
-
-                        html += '   </body>\n';
-                        html += '</html>\n';
-
-                        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': html.length });
-                        response.end(html);
                     }
                 });
             });
@@ -209,10 +138,10 @@ function log_request(request, response) {
                 var body;
                 if(param.query && param.query.type === 'json') {
                     response.setHeader('Content-Type', 'application/json; charset=utf-8');
-                    body = generateJSON(date_string, lines);
+                    body = generateLogsJSON(date_string, lines);
                 } else {
                     response.setHeader('Content-Type', 'text/html; charset=utf-8');
-                    body = generateHTML(date_string, lines, Number(param.query.mark) || -1);
+                    body = generateLogsHTML(date_string, lines, Number(param.query.mark) || -1);
                 }
 
                 response.writeHead(200, { 'Content-Length': Buffer.byteLength(body) });
@@ -232,7 +161,7 @@ function dateToString(date) {
     return date.getUTCFullYear() + '-' + left_pad(date.getUTCMonth()+1) + '-' + left_pad(date.getUTCDate());
 }
 
-function generateHTML(date_string, lines, highlight) {
+function generateLogsHTML(date_string, lines, highlight) {
     var date_string_html = htmlencode.htmlEncode(date_string);
     var title = lines === null ? '' : date_string_html;
 
@@ -337,10 +266,11 @@ function generateHTML(date_string, lines, highlight) {
     }
     html += '   </body>\n';
     html += '</html>\n';
+
     return html;
 }
 
-function generateJSON(date_string, lines) {
+function generateLogsJSON(date_string, lines) {
     if(lines === null) {
         return JSON.stringify({
             err: 'no logs'
@@ -368,4 +298,109 @@ function generateJSON(date_string, lines) {
     });
 
     return JSON.stringify(json);
+}
+
+function generateSearchHTML(search, regex, found) {
+    var html = '<!DOCTYPE html>';
+    html += '<html>\n';
+    html += '   <head>\n';
+    html += '       <title>' + channel + ' logs - Search results</title>\n';
+    html += '       <link rel="stylesheet" type="text/css" href="/jgo-logs/log_viewer.css" />\n';
+    html += '   </head>\n';
+    html += '   <body>\n';
+    html += '       <h1>Search results</h1>\n';
+    html += '       <div id="header">\n';
+    html += '           <p>Search query: ' + htmlencode.htmlEncode(search) + '</p>\n';
+    html += '           <form id="search" method="get">\n';
+    html += '               <label>Search: <input type="text" name="search" value="' + htmlencode.htmlEncode(search) + '" /></label>\n';
+    html += '               <label>Use regex: <input type="checkbox" name="regex" value="true" ' + (regex === 'true' ? 'checked' : '') + ' /></label>\n';
+    html += '               <input type="submit" value="Go" id="searchgo" />\n';
+    html += '          </form>\n';
+    html += '       </div>\n';
+    if(found.length > 0) {
+        html += '       <ol>\n';
+
+        found.reverse().forEach(result => {
+            var file = result[0];
+            var date = file.substring(channel.length + 1, channel.length + 1 + min_date.length);
+            html += '           <li>\n';
+            html += '               <div><a href="?date=' + date + '&mark=' + result[1] + '#mark">' + htmlencode.htmlEncode(file) + '</a></div>\n';
+
+            var line = result[2].trim();
+
+            var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
+            var match = msg_regex.exec(line);
+            if(!match) {
+                html += '                   <div>' + htmlencode.htmlEncode(line) + '</div>\n';
+            } else {
+                html += '       <div class="row"><div class="datestring">' + htmlencode.htmlEncode(match[1]) + '</div>';
+
+                var msg_class = 'msg';
+
+                if(match[2]) {
+                    html += '<div class="nick">' + htmlencode.htmlEncode(match[2]) + '</div>';
+                } else {
+                    msg_class = 'event';
+                }
+
+                var url_regex = /(https?\:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[^\s]*)?/g;
+
+                var msg = match[3];
+
+                var tldjs = require('tldjs');
+
+                var line = '';
+                var url;
+                while(url = url_regex.exec(msg)) {
+                    if(url.index > 0) {
+                        line += htmlencode.htmlEncode(msg.substring(0, url.index));
+                    }
+
+                    var url_result = url[0];
+
+                    if(!tldjs.tldExists(url_result) || !tldjs.isValid(url_result)) {
+                        line += htmlencode.htmlEncode(url_result);
+                    } else {
+                        line += '<a target="_blank" href="' + (url[1] ? '' : 'http://') + url_result + '">' + htmlencode.htmlEncode(url_result) + '</a>';
+                    }
+
+                    msg = msg.substring(url.index + url_result.length);
+                }
+
+                if(msg.length > 0) {
+                    line += htmlencode.htmlEncode(msg);
+                }
+
+                html += '<div class="' + msg_class + '">' + line + '</div></div>\n';
+            }
+
+            html += '               <hr />\n';
+            html += '           </li>\n';
+        });
+
+        html += '       </ol>\n';
+    } else {
+        html += '       <p>No results found</p>\n';
+    }
+
+    html += '   </body>\n';
+    html += '</html>\n';
+
+    return html;
+}
+
+function generateSearchJSON(search, regex, found) {
+    return JSON.stringify({
+        search: search,
+        regex: regex,
+        results: found.map((result) => {
+            var date = result[0].substring(channel.length + 1, channel.length + 1 + min_date.length);
+
+            return {
+                date: date,
+                line: result[2].trim(),
+                url: path + '?date=' + date + '&mark=' + result[1] + '#mark'
+            };
+        })
+    });
 }
