@@ -21,7 +21,7 @@ function give_me_a_cookie(bot, from, to, text, message, utils, config) {
     }
 
     //normal operations
-    var types = ['big', 'yummy', 'scrumptious', 'hot', 'crunchy', 'oatmeal', 'chocolate'];
+    var types = ['big', 'yummy', 'scrumptious', 'hot', 'crunchy', 'chocolate'];
     bot.action(to === bot.nick ? from : to, 'gives a ' + utils.choose_random(types) + ' cookie to ' + from);
 
     //is this cookie baked?
