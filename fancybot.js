@@ -63,17 +63,6 @@ function load_actions() {
         }
     }
 
-    function explicit_check(func, explicitly_allowed_users) {
-        return function(bot, from, to) {
-            if(!bot.chans || !bot.chans[bot.channel.toLowerCase()] || explicitly_allowed_users.indexOf(from) == -1) {
-                bot.sayDirect(from, to, 'Only explicitly defined users may use this command.');
-                return;
-            }
-
-            return func.apply(this, arguments);
-        }
-    }
-
     function no_pm(func) {
         return function(bot, from, to) {
             if(to === bot.nick && bot.chans[bot.channel] && bot.chans[bot.channel].users[from] !== '@') {
@@ -196,9 +185,7 @@ function load_actions() {
                 if(options.help_on_empty) {
                     func = help_on_empty(func);
                 }
-                if(options.explicitly_allowed_users) {
-                    func = explicit_check(func, options.explicitly_allowed_users);
-                } else if(options.op_only) {
+                if(options.op_only) {
                     func = op_only(func);
                 }
                 if(options.no_pm) {

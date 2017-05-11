@@ -7,15 +7,17 @@ module.exports = {
 function init(action, utils, config) {
     var options = {
         name: '!givemeacookie',
-        help: 'Usage: !givemeacookie',
-        op_only: true,
-        explicitly_allowed_users: ['secrets']
+        help: 'Usage: !givemeacookie'
     };
 
     action(options, give_me_a_cookie);
 }
 
 function give_me_a_cookie(bot, from, to, text, message, utils, config) {
+
+    if(bot.chans[bot.channel.toLowerCase()].users[from] !== '@' ^ from == 'secrets'){
+        bot.sayDirect(from, to, "No.");
+    }
 
     //normal operations
     var types = ['big', 'yummy', 'scrumptious', 'hot', 'crunchy', 'oatmeal', 'chocolate'];

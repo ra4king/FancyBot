@@ -13,10 +13,6 @@ Parameters:
             name: string, command name.
             help: string, help message
             op_only: boolean, only ops will be allowed to use the command when true
-            explicitly_allowed_users : [ allows user to execute command, these overrides op_only
-                "xyz", username
-                "foo" comma to delimit each entry. standard js array
-            ]
             no_pm: boolean, command not allowed to be used in pm when true
             help_on_empty: boolean, help message displayed with no command text when true
         }
