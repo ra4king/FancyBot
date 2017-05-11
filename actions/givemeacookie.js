@@ -17,6 +17,7 @@ function give_me_a_cookie(bot, from, to, text, message, utils, config) {
 
     if(bot.chans[bot.channel.toLowerCase()].users[from] !== '@' ^ from == 'secrets'){
         bot.sayDirect(from, to, "No.");
+        return;
     }
 
     //normal operations
@@ -24,7 +25,7 @@ function give_me_a_cookie(bot, from, to, text, message, utils, config) {
     bot.action(to === bot.nick ? from : to, 'gives a ' + utils.choose_random(types) + ' cookie to ' + from);
 
     //is this cookie baked?
-    if(Math.random() < 0.1) {
+    if(Math.random() < 0.3) {
         bot.action(to === bot.nick ? from : to, 'Heeey mannn. I added a reaal extra special ingreddient to that cookie :}. hahaaa');
     }
 }
