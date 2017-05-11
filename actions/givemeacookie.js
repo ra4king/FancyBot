@@ -15,7 +15,7 @@ function init(action, utils, config) {
 
 function give_me_a_cookie(bot, from, to, text, message, utils, config) {
 
-    if(bot.chans[bot.channel.toLowerCase()].users[from] !== '@' ^ from == 'secrets'){
+    if(bot.chans[bot.channel.toLowerCase()].users[from] !== '@' && from != 'secrets'){
         bot.sayDirect(from, to, "No.");
         return;
     }
