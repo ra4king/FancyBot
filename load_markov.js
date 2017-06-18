@@ -80,58 +80,68 @@ function createMappings(from, text) {
     return mappings;
 }
 
+function forEachAsync(arr, max, callback, after) {
+    var idx = 0;
+
+    var next = () => {
+        if(idx < arr.length) {
+            callback(arr[idx++], next);
+        } else if(after) {
+            after();
+            after = null;
+        }
+    }
+
+    for(let i = 0; i < max && idx < arr.length; i++) {
+        next();
+    }
+}
+
 function generateAll() {
-    var logs = fs.readdirSync('logs/');
-
-    var parseLog = (idx) => {
-        if(idx >= logs.length) {
-            mongoose.disconnect();
-            return;
+    fs.readdir('logs/', (err, files) => {
+        if(err) {
+            return console.error(err);
         }
 
-        var file = logs[idx];
+        forEachAsync(files, 10, (file, next) => {
+            if(idx >= logs.length) {
+                mongoose.disconnect();
+                return;
+            }
 
-        if(!file.endsWith('.log')) {
-            return parseLog(idx + 1);
-        }
+            var file = logs[idx];
 
-        var mappings = []
+            if(!file.endsWith('.log')) {
+                return next();
+            }
 
-        fs.readFile('logs/' + file, 'utf8', (err, contents) => {
-            contents = contents.toString().split('\n');
+            var mappings = []
 
-            console.log('Markov: analyzing file: ' + file);
+            fs.readFile('logs/' + file, 'utf8', (err, contents) => {
+                console.log('Markov: analyzing file: ' + file);
 
-            var mapNextLine = (n) => {
-                if(n >= contents.length) {
-                    return Mapping.insertMany(mappings, (err) => {
-                        if(err) {
-                            console.error('Markov: error saving to mongodb');
-                            console.error(err);
-                            process.exit();
-                        }
+                contents.toString().split('\n').forEach((line) => {
+                    var msg_regex = /^(\[.+?\])  ([<-](.+?)[>-] |\* )?(.+)$/;
+                    var match = msg_regex.exec(line);
+                    if(!match || !match[3]) {
+                        return;
+                    }
 
-                        console.log('Markov: analyzation complete: ' + file);
-                        parseLog(idx + 1);
-                    });
-                }
+                    var text = match[4];
+                    mappings = mappings.concat(createMappings(match[3], text));
+                });
 
-                var line = contents[n];
+                Mapping.insertMany(mappings, (err) => {
+                    if(err) {
+                        console.error('Markov: error saving to mongodb');
+                        console.error(err);
+                        process.exit();
+                    }
 
-                var msg_regex = /^(\[.+?\])  ([<-](.+?)[>-] |\* )?(.+)$/;
-                var match = msg_regex.exec(line);
-                if(!match || !match[3]) {
-                    return mapNextLine(n + 1);
-                }
-
-                var text = match[4];
-                mappings = mappings.concat(createMappings(match[3], text));
-                mapNextLine(n + 1);
-            };
-
-            mapNextLine(0);
+                    console.log('Markov: analyzation complete: ' + file);
+                    next();
+                });
+            });
         });
-    };
-
-    parseLog(0);
+    });
 }
