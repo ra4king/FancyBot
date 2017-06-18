@@ -55,6 +55,11 @@ function load_actions() {
     function op_only(func) {
         return function(bot, from, to) {
             if(!bot.chans || !bot.chans[bot.channel.toLowerCase()] || bot.chans[bot.channel.toLowerCase()].users[from] !== '@') {
+                console.log('op_only:');
+                console.log(bot.channel);
+                console.log(bot.chans[bot.channel.toLowerCase()]);
+                console.log(require('util').inspect(bot.chans));
+
                 bot.sayDirect(from, to, 'Only ops may use this command.');
                 return;
             }
@@ -282,26 +287,32 @@ bot.channel = chan;
 
 var check_nick = (function() {
     var lastCall = null;
+    var lastTry = 0;
     var retryCount = 0;
+    var waitTime = 10000;
+
     return function() {
-        if(lastCall) {
-            if(++retryCount < 3) {
+        if(lastCall && Date.now() - lastTry < waitTime) {
+            if(retryCount++ < 3) {
                 clearTimeout(lastCall);
-                lastCall = setTimeout(check_nick, 2000);
+                lastTry = Date.now();
+                lastCall = setTimeout(check_nick, waitTime);
             }
 
             return;
         }
 
+        retryCount = 0;
+        lastCall = null;
+
         if(bot.nick != name) {
             bot.send('NICK', name);
-            lastCall = setTimeout(check_nick, 2000);
-        } else {
-            retryCount = 0;
-            lastCall = null;
+            lastTry = Date.now();
+            lastCall = setTimeout(check_nick, waitTime);
         }
     }
 })();
+
 
 bot.sayDirect = function(from, to, address, message) {
     if(message === undefined) {
@@ -408,7 +419,6 @@ bot.on('notice', function(nick, to, text, message) {
 bot.on('selfMessage', function(to, text) {
     check_nick();
     actions.emit('_self', bot, to, text);
-    console.log(bot.nick + ' ' + 'to ' + to + ': ' + text);
 });
 
 bot.on('action', function(nick, to, text, message) {
