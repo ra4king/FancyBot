@@ -6,6 +6,9 @@ function init(action, utils, config) {
     if(!config.slap_messages) {
         config.slap_messages = [];
     }
+    if(!config.to_slap) {
+        config.to_slap = {};
+    }
 
     var slapmsg_options = {
         name: 'slapmsg',
@@ -28,6 +31,24 @@ function init(action, utils, config) {
     action({name: '_action'}, function(bot, from, to, text, message, utils, config) {
         if(text.indexOf('slaps ' + bot.nick) != -1) {
             slap(bot, from, to, from, message, utils, config);
+        }
+    });
+
+    action({name: '_join'}, function(bot, channel, nick, message) {
+        if(nick in config.to_slap) {
+            bot.action(bot.channel, 'slaps ' + nick + ' ' + config.to_slap[nick]);
+
+            delete config.to_slap[nick];
+            utils.save_config();
+        }
+    });
+
+    action({name: '_nick'}, function(bot, oldnick, nick, channels, message) {
+        if(nick in config.to_slap) {
+            bot.action(bot.channel, 'slaps ' + nick + ' ' + config.to_slap[nick]);
+
+            delete config.to_slap[nick];
+            utils.save_config();
         }
     });
 }
@@ -55,15 +76,20 @@ function slap(bot, from, to, text, message, utils, config) {
         return;
     }
 
-    var actual_nick;
-    if((to === bot.nick && nick !== from) || (to === bot.channel && !(actual_nick = is_in_channel(bot.chans[to.toLowerCase()].users, nick)))) {
-        bot.sayDirect(from, to, nick + ' is not in this channel.');
+    if(to == bot.nick && nick != from) {
+        bot.sayDirect(from, to, 'There\'s nobdy to slap around here!');
         return;
     }
 
-    var message = idx == -1 ? undefined : text.substring(idx + 1).trim();
-    if(!message) {
-        message = utils.choose_random(config.slap_messages);
+    var message = idx == -1 ? utils.choose_random(config.slap_messages) : text.substring(idx + 1).trim();
+
+    var actual_nick = nick;
+    if(to === bot.channel && !(actual_nick = is_in_channel(bot.chans[to.toLowerCase()].users, nick))) {
+        config.to_slap[nick] = message;
+        utils.save_config();
+
+        bot.sayDirect(from, to, nick + ' is not in this channel. Will slap on join.');
+        return;
     }
 
     bot.action(to === bot.nick ? from : to, 'slaps ' + actual_nick + ' ' + message);
