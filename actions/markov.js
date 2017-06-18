@@ -61,6 +61,17 @@ function init(action, utils, config) {
         bot.sayDirect(from, to, 'Annoying mode set with a rate of ' + config.annoyingModeRate + '%');
     });
 
+    action({ name: 'markovmax', op_only: true }, function(bot, from, to, text) {
+        if(!text) {
+            bot.sayDirect(from, to, 'Give me a number');
+            return;
+        }
+
+        config.maxMarkovSentences = parseInt(text);
+        utils.save_config();
+        bot.sayDirect(from, to, 'Max markov count set as ' + config.maxMarkovSentences);
+    });
+
     action({
             name: 'speaklike',
             help: 'Usage: !speaklike username. Give it a username and it will speak like them.'
@@ -77,17 +88,25 @@ function init(action, utils, config) {
         });
 
     function onMessage(bot, from, to, text) {
-        createMappings(from, text, () => {
-            if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < config.annoyingModeRate) {
-                let split = text.split(' ');
-                let idx = Math.floor(Math.random() * (split.length - n + 1));
-                let input = split.slice(idx, idx + n);
+        if(text.toLowerCase().startsWith('thanks ' + bot.nick.toLowerCase())) {
+            return bot.sayDirect(from, to, false, 'No problem ' + from);
+        } else if(text.toLowerCase().startsWith('i love you ' + bot.nick.toLowerCase())) {
+            return bot.sayDirect(from, to, false, 'I love you too ' + from);
+        } else if(text.toLowerCase().startsWith('i hate you ' + bot.nick.toLowerCase())) {
+            return bot.sayDirect(from, to, false, 'I hate you too ' + from);
+        } else {
+            createMappings(from, text, () => {
+                if(text.indexOf(bot.nick) != -1 || (100 * Math.random()) < config.annoyingModeRate) {
+                    let split = text.split(' ');
+                    let idx = Math.floor(Math.random() * (split.length - n + 1));
+                    let input = split.slice(idx, idx + n);
 
-                generateMarkov(null, input, (err, message) => {
-                    setTimeout(() => bot.sayDirect(from, to, false, err ? String(err) : message.join(' ')), 700);
-                });
-            }
-        });
+                    generateMarkov(null, input, (err, message) => {
+                        setTimeout(() => bot.sayDirect(from, to, false, err ? String(err) : message.join(' ')), 700);
+                    });
+                }
+            });
+        }
     }
 
     action({ name: '_msg' }, function(bot, from, to, text) {
@@ -104,7 +123,7 @@ function init(action, utils, config) {
 
     function sayRandomly() {
         var bot = utils.get_bot();
-        markov(bot, '', bot.channel, '');
+        markov(bot, '', bot.channel, '', null, utils, config);
 
         var milliseconds = Math.floor(Math.random() * 4 * 60 * 60 * 1000) + 2 * 60 * 60 * 1000;
         console.log('Markov: waiting for ' + milliseconds + ' ms');
@@ -321,12 +340,12 @@ function generateMarkov(user, initialInputs, callback) {
     generateSentence();
 }
 
-function markov(bot, from, to, text) {
+function markov(bot, from, to, text, message, utils, config) {
     console.log('Generating markov');
     
     var initialInputs = null;
 
-    if(text) {
+    if(text && Number.isNaN(Number(text))) {
         var split = text.split(' ');
 
         switch(split[0]) {
@@ -359,7 +378,17 @@ function markov(bot, from, to, text) {
         }
     }
 
-    generateMarkov(null, initialInputs, (err, message) => {
-        bot.sayDirect(from, to, false, err ? String(err) : message.join(' '));
-    });
+    var count =  Math.max(Math.min(Number(text) || 1, config.maxMarkovSentences), 1);
+
+    var generateOne = () => {
+        generateMarkov(null, initialInputs, (err, message) => {
+            bot.sayDirect(from, to, false, err ? String(err) : message.join(' '));
+
+            if(--count > 0) {
+                generateOne();
+            }
+        });
+    }
+
+    generateOne();
 }
