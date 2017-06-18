@@ -6,7 +6,7 @@ module.exports = {
 
 function init(action, utils, config) {
     var options = {
-        name: '!givemeacookie',
+        name: 'givemeacookie',
         help: 'Usage: !givemeacookie'
     };
 
@@ -14,7 +14,6 @@ function init(action, utils, config) {
 }
 
 function give_me_a_cookie(bot, from, to, text, message, utils, config) {
-
     if(bot.chans[bot.channel.toLowerCase()].users[from] !== '@' && from != 'secrets'){
         bot.sayDirect(from, to, "No.");
         return;
@@ -26,6 +25,6 @@ function give_me_a_cookie(bot, from, to, text, message, utils, config) {
 
     //is this cookie baked?
     if(Math.random() < 0.3) {
-        bot.action(to === bot.nick ? from : to, 'Heeey mannn. I added a reaal extra special ingreddient to that cookie :}. hahaaa');
+        bot.sayDirect(from, to, 'Heeey mannn. I added a reaal extra special ingreddient to that cookie :}. hahaaa');
     }
 }
