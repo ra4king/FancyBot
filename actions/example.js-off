@@ -24,7 +24,7 @@ Parameters:
             text: string, the text following the command
             message: object, node-irc raw message: http://node-irc.readthedocs.io/en/latest/API.html#'raw'
             utils: object, same as init utils
-            config: object, same as init utils
+            config: object, same as init config
     utils: {
         save_config: function, whenever config is modified, call this function to save to disk.
                      This function is debounced, meaning multiple rapid calls are reduced to a single call.
