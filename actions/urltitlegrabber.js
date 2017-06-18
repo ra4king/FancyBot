@@ -79,7 +79,7 @@ function no_command(bot, from, to, text, message, utils, config) {
                             var found = false;
 
                             function test_title() {
-                                var title_regex = /<\s*title.*?>([\s\S]+?)</mi;
+                                var title_regex = /<\s*title.*?>(.+?)</mi;
                                 var title = title_regex.exec(data);
 
                                 if(title && title[1]) {
