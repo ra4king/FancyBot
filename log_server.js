@@ -36,12 +36,28 @@ function log_request(request, response) {
             response.end('File not found.');
         }
     } else if(param.query.search) {
+        var query = param.query.search;
+
+        if(param.query.regex !== "true") {
+            query = query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&');
+        }
+
+        try {
+            new RegExp(query, 'ig');
+        } catch(e) {
+            response.writeHead(400);
+            response.end('Invalid regex `' + query + '`: ' + e);
+            return;
+        }
+
         fs.readdir('logs/', (err, files) => {
             if(err) {
                 console.error('Error reading logs directory');
                 console.error(err);
 
-                return response.writeHead(500).end('Internal error');
+                response.writeHead(500);
+                response.end('Internal error: ' + err);
+                return;
             }
 
             var hasResponded = false;
@@ -68,38 +84,53 @@ function log_request(request, response) {
                         console.error('Error reading file: ' + file);
                         console.error(err);
                         response.writeHead(500);
-                        return response.end('Internal error');
+                        return response.end('Internal error: ' + err);
                     }
 
-                    var query = param.query.search;
-
-                    if(param.query.regex !== "true") {
-                        query = query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&');
-                    }
-
-                    var text = data.toString();
-                    var rgx = new RegExp(query, 'ig');
-
-                    var search;
-                    while((search = rgx.exec(text))) {
-                        var idx = search.index;
-                        var start = text.lastIndexOf('\n', idx);
-                        var end = text.indexOf('\n', idx);
-
-                        start = start == -1 ? 0 : start;
-                        end = end == -1 ? text.length : end;
-
-                        found.push([ file, search.index, text.substring(start, end) ]);
-                    }
-
-                    if(found.length > MAX_RESULTS) {
-                        found.splice(0, found.length - MAX_RESULTS);
-                    }
-
-                    if(visited == files.length) {
-                        hasResponded = true;
-
+                    try {
                         try {
+                            require('vm').runInNewContext(
+                                `var currIdx = 0;
+                                lines.forEach(line => {
+                                    var search;
+                                    if((search = new RegExp(query, 'ig').exec(line))) {
+                                        found.push([ file, currIdx + search.index, line.trim() ]);
+                                    }
+
+                                    currIdx += line.length + 1;
+                                });`, { lines: data.toString().split('\n'), query: query, file: file, found: found }, { timeout: 100 });
+                        } catch(e) {
+                            console.log(e);
+
+                            hasResponded = true;
+                            response.writeHead(400);
+                            response.end('Regex timed out.');
+                            return;
+                        }
+
+                        if(found.length > MAX_RESULTS) {
+                            found.splice(0, found.length - MAX_RESULTS);
+                        }
+
+                        if(visited == files.length) {
+                            found.sort((a, b) => {
+                                var msg_regex = /^\[(.+?)\].+$/;
+                                var matchA = msg_regex.exec(a[2]);
+                                if(!matchA) {
+                                    return -1;
+                                }
+
+                                var msg_regex = /^\[(.+?)\].+$/;
+                                var matchB = msg_regex.exec(b[2]);
+                                if(!matchB) {
+                                    return 1;
+                                }
+
+                                return new Date(matchB[1]) - new Date(matchA[1]);
+                            });
+
+                            hasResponded = true;
+
                             var body;
                             if(param.query && param.query.type === 'json') {
                                 response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -111,10 +142,11 @@ function log_request(request, response) {
 
                             response.writeHead(200, { 'Content-Length': Buffer.byteLength(body) });
                             response.end(body);
-                        } catch(e) {
-                            response.writeHead(500);
-                            response.end('Internal error: ' + e);
                         }
+                    } catch(err) {
+                        hasResponded = true;
+                        response.writeHead(500);
+                        response.end('Internal error: ' + err);
                     }
                 });
             });
@@ -320,13 +352,13 @@ function generateSearchHTML(search, regex, found) {
     if(found.length > 0) {
         html += '       <ol>\n';
 
-        found.reverse().forEach(result => {
+        found.forEach(result => {
             var file = result[0];
             var date = file.substring(channel.length + 1, channel.length + 1 + min_date.length);
             html += '           <li>\n';
             html += '               <div><a href="?date=' + date + '&mark=' + result[1] + '#mark">' + htmlencode.htmlEncode(file) + '</a></div>\n';
 
-            var line = result[2].trim();
+            var line = result[2];
 
             var msg_regex = /^(\[.+?\])  ([<-].+?[>-] |\* )?(.+)$/;
             var match = msg_regex.exec(line);
@@ -398,7 +430,7 @@ function generateSearchJSON(search, regex, found) {
 
             return {
                 date: date,
-                line: result[2].trim(),
+                line: result[2],
                 url: path + '?date=' + date + '&mark=' + result[1] + '#mark'
             };
         })

@@ -67,6 +67,8 @@ li {
     align-items: stretch;
 
     overflow: hidden;
+
+    font-size: 16px;
 }
 
 .row:nth-child(odd) {
@@ -94,6 +96,7 @@ li {
     min-width: 160px;
     width: 160px;
     padding-right: 10px;
+    overflow: hidden;
 }
 
 .msg {
@@ -104,7 +107,7 @@ li {
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-wrap: break-word;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .event {
@@ -115,5 +118,5 @@ li {
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-wrap: break-word;
-    overflow: auto;
+    overflow: hidden;
 }
